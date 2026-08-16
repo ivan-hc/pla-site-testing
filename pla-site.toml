@@ -1,0 +1,121 @@
+am_repo = "https://raw.githubusercontent.com/ivan-hc/AM/main"
+archs = ["x86_64", "aarch64", "i686"]
+meta_pkgs = ["kdegames", "kdeutils", "node", "platform-tools"]
+out_dir = "public"
+
+[[cat_pats]]
+name = "ai"
+pattern = 'chatgpt|openai|gemini|claude|copilot|perplexity| meta |grok|anthropic|huggingface|mistral|cohere|together|replicate|cursor|codeium|tabnine|replit|windsurf|midjourney|firefly|canva|runway|leonardo|synthesia|elevenlabs|heygen|zapier|z\.ai|clickup|grammarly|ollama|lmstudio|openwebui|salesforce|watsonx'
+exclude = "illus"
+
+[[cat_pats]]
+name = "am-utils"
+pattern = '"am-utils"'
+
+[[cat_pats]]
+name = "android"
+pattern = "android|platform-tools"
+
+[[cat_pats]]
+name = "audio"
+pattern = "audio|matroska|music|midi|mp3|opus|soundboard"
+
+[[cat_pats]]
+name = "comic"
+pattern = "comic|manga|anime"
+
+[[cat_pats]]
+name = "command-line"
+pattern = 'command-line|command line| cli |-cli|terminal |"am-utils"|"node"|"platform-tools"'
+
+[[cat_pats]]
+name = "communication"
+pattern = "communication|voip|messenger|whatsapp|mastodon|skype|chat client|social network|conferencing|discord|email|telegram"
+
+[[cat_pats]]
+name = "disk"
+pattern = "disk|partition|usb drive"
+
+[[cat_pats]]
+name = "education"
+pattern = "education|productivity|study|dictionar|math| book | books |book-|ebook|e-book|space simulator|planetarium|astronom|university|bible|quran|koran"
+exclude = "game|manga|anime"
+
+[[cat_pats]]
+name = "emulator"
+pattern = "emulator"
+exclude = "terminal emulator"
+
+[[cat_pats]]
+name = "file-manager"
+pattern = "file-manager|file manager|file browse|browse.*file|file explore|explore.*file"
+
+[[cat_pats]]
+name = "finance"
+pattern = "finance|wallet|money"
+
+[[cat_pats]]
+name = "game"
+pattern = "game|arcade|steam|wine|strateg|solitaire|poker|chess|puzzle|pinball|adventure|playstation|xbox|nintendo|minecraft|doom"
+
+[[cat_pats]]
+name = "gnome"
+pattern = "gnome"
+
+[[cat_pats]]
+name = "graphic"
+pattern = "drawing|jpg|duplicated images|gimp|inkscape|converseen|visipics|imagemagick|photo|svg|png|autocad|blender|3D modeling|paint|pixel|wallpaper"
+
+[[cat_pats]]
+name = "internet"
+pattern = "internet|vpn|torrent|p2p"
+
+[[cat_pats]]
+name = "kde"
+pattern = "kde"
+
+[[cat_pats]]
+name = "office"
+pattern = "office|document|pdf|docx|reader|spreadsheet"
+exclude = "manga|comic"
+
+[[cat_pats]]
+name = "password"
+pattern = "password"
+
+[[cat_pats]]
+name = "steam"
+pattern = "steam"
+
+[[cat_pats]]
+name = "system-monitor"
+pattern = "system-monitor|system monitor|task manager|system resource|system resources|linux processes"
+
+[[cat_pats]]
+name = "video"
+pattern = "video|stream|media player|film|movies|netflix|iptv"
+
+[[cat_pats]]
+name = "virtual-machine"
+pattern = "virtual-machine|virtual machine|virtualization|qemu"
+
+[[cat_pats]]
+name = "wallet"
+pattern = "wallet"
+
+[[cat_pats]]
+name = "web-app"
+pattern = "web-app|webapp|web app"
+
+[[cat_pats]]
+name = "web-browser"
+pattern = "web-browser|web.*browser|browser.*web|google-chrome|firefox.*browser|firefox.*fork|fork.*firefox|safari|microsoft-edge|opera.*browser|brave.*browser|vivaldi.*browser|arc.*browser|tor.*browser|chromium|duckduckgo.*browser|orion.*browser|waterfox|librewolf|palemoon|seamonkey|maxthon|yandex.*browser|uc.*browser|qq.*browser|baidu.*browser|kiwi|puffin|dolphin.*browser|epic.*browser|avast.*browser|avg.*browser|midori|falkon|konqueror|gnome.*web.*browser|floorp|zen.*browser|slimjet|srware.*iron|comodo.*dragon|sleipnir|lunascape|otter.*browser|basilisk|icecat|kmeleon|k-melon|netscape|mosaic.*browser"
+exclude = "embedded web browser video player"
+
+[[cat_pats]]
+name = "wine"
+pattern = "wine"
+
+[[cat_pats]]
+name = "youtube"
+pattern = "youtube"
