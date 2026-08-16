@@ -7,7 +7,7 @@
     return;
   }
 
-  fetch('app/' + encodeURIComponent(name) + '.json')
+  fetch(encodeURIComponent(name) + '.json')
     .then(function(r) {
       if (!r.ok) throw new Error('Not found');
       return r.json();

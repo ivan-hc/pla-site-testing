@@ -14,8 +14,8 @@
   <meta name="twitter:description" content="$APP_DESC">
   <link rel="canonical" href="https://portable-linux-apps.github.io/app/$APP_NAME.html">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
-  <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to main content</a>
@@ -36,7 +36,7 @@
 
 <a href="#" id="back-to-top" title="Back to top">&uarr;</a>
 
-<script src="assets/js/app_page.js"></script>
+<script src="../assets/js/app_page.js"></script>
 
 </main>
 <footer>
