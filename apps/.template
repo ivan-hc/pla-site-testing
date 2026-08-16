@@ -7,7 +7,7 @@ only use **bold**, *italic*, ++underline++, lists markdown here
 - use SOURCES field if you package someone else's app
 ===
 
-# SCREENSHOTS: https://coyoteclan.github.io/Portable-Linux-Apps.github.io/contribute_ss.png https://coyoteclan.github.io/Portable-Linux-Apps.github.io/contribute_ss.png
+# SCREENSHOTS: https://Portable-Linux-Apps.github.io/contribute_ss.png https://Portable-Linux-Apps.github.io/contribute_ss.png
 # SITES: https://someapp.io
 # SOURCES: https://github.com/name/someapp-appimage
 # BUTTONS: Label_of_Button::https://discord.gg Donation_Link::https://someapp.io/donate
