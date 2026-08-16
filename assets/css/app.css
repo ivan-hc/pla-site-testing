@@ -51,6 +51,11 @@
   color: #fff;
 }
 
+.install-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
+}
+
 .app-body-content {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -129,6 +134,13 @@
   will-change: opacity, transform;
 }
 
+/* Disable gallery animations on reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .gallery-inner img {
+    transition: none !important;
+  }
+}
+
 .gallery-inner img.gal-transition {
   opacity: 0;
 }
@@ -143,8 +155,10 @@
 
 .gallery-btn {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  min-width: 48px;
+  min-height: 48px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -154,8 +168,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   user-select: none;
+}
+
+.gallery-btn:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
 }
 
 .gallery-btn:hover {
@@ -177,14 +197,19 @@
 }
 
 .gallery-dot {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: transparent;
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.gallery-dot:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
 }
 
 .gallery-dot.active {
@@ -227,6 +252,13 @@
   text-decoration: none;
 }
 
+.app-links-section li a:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 3px rgba(88, 166, 255, 0.4);
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
 .button-list {
   list-style: none;
   display: flex;
@@ -253,6 +285,12 @@
   color: #fff;
 }
 
+.app-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
+  border-color: var(--color-accent);
+}
+
 #back-link {
   display: inline-block;
   margin: 1rem 1.5rem 0;
@@ -264,6 +302,12 @@
 
 #back-link:hover {
   color: var(--color-accent);
+}
+
+#back-link:focus {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
 }
 
 .error-box {

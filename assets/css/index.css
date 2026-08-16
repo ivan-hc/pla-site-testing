@@ -68,6 +68,12 @@
   text-decoration: none;
 }
 
+.cta-card:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
+  border-color: var(--color-accent);
+}
+
 .cta-card img {
   margin-bottom: 0.75rem;
 }
@@ -110,6 +116,13 @@
   border-color: var(--color-accent);
   background: var(--color-surface);
   text-decoration: none;
+}
+
+.category-link:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 3px rgba(88, 166, 255, 0.4);
+  border-color: var(--color-accent);
+  background: var(--color-surface);
 }
 
 /* About */

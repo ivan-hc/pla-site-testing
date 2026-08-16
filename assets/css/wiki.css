@@ -31,3 +31,9 @@
 .wiki-page a {
   color: var(--color-accent);
 }
+
+.wiki-page a:focus {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
+}

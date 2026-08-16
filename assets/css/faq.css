@@ -17,10 +17,18 @@
   align-items: center;
   gap: 0.5rem;
   user-select: none;
+  border-radius: var(--radius);
+  transition: box-shadow 0.15s, background 0.15s;
 }
 
 .faq-page summary::-webkit-details-marker {
   display: none;
+}
+
+.faq-page summary:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
+  background: var(--color-surface);
 }
 
 .faq-page summary::before {
@@ -85,6 +93,12 @@
   font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
   font-size: 0.8125rem;
   color: var(--color-accent);
+}
+
+.faq-page a:focus {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
 }
 
 .faq-page h2 {
