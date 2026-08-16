@@ -43,7 +43,7 @@ jobs:
           cp -t public/ *.png *.ico
           cp -t public/ -r assets
           cp -t public/ -r icons
-          cp -t public/ apps.html faq.html index.html wiki.html sitemap.xml
+          cp -t public/ apps.html faq.html wiki.html sitemap.xml
 
           echo "site generated" | tee -a build-log.txt
 
