@@ -191,6 +191,14 @@ section h2 {
   margin-bottom: 1rem;
 }
 
+select {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  padding: 0.5rem 0.75rem;
+}
+
 #search-input {
   width: 100%;
   max-width: 480px;
