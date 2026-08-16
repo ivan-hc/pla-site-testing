@@ -40,19 +40,27 @@ document.addEventListener('DOMContentLoaded', function() {
   fetch(jsonUrl)
     .then(function(r) { return r.json() })
     .then(function(data) {
+      // Convert object {name: {...}, ...} to array [{name, ...}, ...]
+      var dataArray = [];
+      for (var key in data) {
+        if (data.hasOwnProperty(key)) {
+          dataArray.push({ name: key, description: data[key].description, archs: data[key].archs || [] });
+        }
+      }
+
       var meta = document.getElementById('category-meta');
-      if (meta) meta.textContent = 'Here are listed ' + data.length + ' apps for this category.';
+      if (meta) meta.textContent = 'Here are listed ' + dataArray.length + ' apps for this category.';
 
       var cache = [];
-      for (var i = 0; i < data.length; i++) {
+      for (var i = 0; i < dataArray.length; i++) {
         cache.push({
-          name: data[i].name.toLowerCase(),
-          desc: data[i].description ? data[i].description.toLowerCase() : '',
-          archs: data[i].archs || []
+          name: dataArray[i].name.toLowerCase(),
+          desc: dataArray[i].description ? dataArray[i].description.toLowerCase() : '',
+          archs: dataArray[i].archs || []
         });
       }
 
-      renderApps(data);
+      renderApps(dataArray);
 
       var input = document.getElementById('search-input');
       var arch = document.getElementById('arch-select');
