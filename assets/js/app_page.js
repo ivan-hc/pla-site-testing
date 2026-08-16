@@ -16,7 +16,7 @@
       var html = '';
 
       // Header with icon, name, sites
-      var iconUrl = 'icons/' + encodeURIComponent(name) + '.png';
+      var iconUrl = '../icons/' + encodeURIComponent(name) + '.png';
       html += '<div class="app-detail-header">';
       html += '<img src="' + iconUrl + '" alt="" onerror="this.style.display=\'none\'">';
       html += '<div>';

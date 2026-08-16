@@ -13,7 +13,7 @@
   <meta name="twitter:image" content="https://portable-linux-apps.github.io/icons/$APP_NAME.png">
   <meta name="twitter:description" content="$APP_DESC">
   <link rel="canonical" href="https://portable-linux-apps.github.io/app/$APP_NAME.html">
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/app.css">
 </head>
