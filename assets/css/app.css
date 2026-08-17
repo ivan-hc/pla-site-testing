@@ -149,6 +149,16 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  height: 480px;
+}
+
+@media (max-width: 768px) {
+  .gallery-inner {
+    height: 320px;
+  }
+  .gallery-inner img {
+    max-height: 320px;
+  }
 }
 
 .gallery-inner img {
