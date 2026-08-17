@@ -39,7 +39,7 @@ jobs:
           chmod a+x magick
           ./magick --appimage-extract
           ls squashfs-root
-          sudo mv squashfs-root/* /
+          sudo cp -r squashfs-root/usr/* /usr/
           sudo chmod a+x /usr/bin/magick
           rm -rf magick squashfs-root
 
