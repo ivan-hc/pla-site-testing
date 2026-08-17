@@ -5,6 +5,6 @@ MPV is a free (as in freedom) media player for the command line. It supports a  
  This script lets you choose between the unofficials AppImage and Archimage.
 ===
 # SCREENSHOTS: ../contribute_ss.webp
-# SITES: 
-# SOURCES: https://github.com/pkgforge-dev/mpv-AppImage
+# SITES: https://mpv.io/
+# SOURCES: https://github.com/pkgforge-dev/mpv-AppImage https://github.com/ivan-hc/MPV-appimage
 # BUTTONS: 

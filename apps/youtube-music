@@ -6,6 +6,4 @@ YouTube Music AppImage is an Electron wrapper around YouTube Music featuring:
     - Framework for custom plugins: change YouTube Music to your needs (style, content, features), enable/disable plugins in one click
 ===
 # SCREENSHOTS: ../contribute_ss.webp
-# SITES: 
-# SOURCES: https://github.com/th-ch/youtube-music
-# BUTTONS: 
+# SITES: https://github.com/th-ch/youtube-music
