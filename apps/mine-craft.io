@@ -2,7 +2,7 @@
 ===
 Minecraft and even more!
 ===
-# SCREENSHOTS: 
+# SCREENSHOTS: ../contribute_ss.webp
 # SITES: https://mine-craft.io
 # SOURCES: 
 # BUTTONS: 

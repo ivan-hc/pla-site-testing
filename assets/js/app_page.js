@@ -16,9 +16,9 @@
       var html = '';
 
       // Header with icon, name, sites
-      var iconUrl = '../icons/' + encodeURIComponent(name) + '.png';
+      var iconUrl = '../icons/' + encodeURIComponent(name) + '.webp';
       html += '<div class="app-detail-header">';
-      html += '<img src="' + iconUrl + '" alt="" onerror="this.style.display=\'none\'">';
+      html += '<img src="' + iconUrl + '" alt="" onerror="this.src=\'../no-icon.webp\'">';
       html += '<div>';
       html += '<h1>' + escapeHtml(app.name || name) + '</h1>';
       html += '<div class="app-meta"></div>';
@@ -176,15 +176,25 @@
   }
 
   // Minimal markdown -> HTML for descriptions.
-  // Supports only: **bold**, *italic*, ++underline++, and - / * / 1. lists.
+  // Supports: `inline code`, fenced code blocks (```), **bold**, *italic*,
+  // ++underline++, and - / * / 1. lists.
   // Everything else is treated as plain text (and HTML-escaped first,
   // so no other tags can sneak in through the JSON data).
   function inlineMarkdown(s) {
+    // Protect inline code spans first so no formatting is applied inside them.
+    var codeSpans = [];
+    s = s.replace(/`([^`]+)`/g, function(m, c) {
+      codeSpans.push(c);
+      return '\u0000c' + (codeSpans.length - 1) + '\u0000';
+    });
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
     s = s.replace(/\+\+(.+?)\+\+/g, '<u>$1</u>');
     s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
     s = s.replace(/_(.+?)_/g, '<em>$1</em>');
+    s = s.replace(/\u0000c(\d+)\u0000/g, function(m, i) {
+      return '<code>' + codeSpans[Number(i)] + '</code>';
+    });
     return s;
   }
 
@@ -207,6 +217,27 @@
       var olRe = /^\d+\.\s+(.*)$/;
       var ulMatch = line.match(ulRe);
       var olMatch = !ulMatch && line.match(olRe);
+
+      // Fenced code block: ```[lang] ... ```
+      if (trimmed.match(/^`{3}/)) {
+        var fenceMatch = /^`{3}(\w*)\s*$/.exec(trimmed);
+        var codeLang = fenceMatch && fenceMatch[1] ? fenceMatch[1] : '';
+        var codeLines = [];
+        i++;
+        while (i < lines.length) {
+          if (/^`{3}\s*$/.test(lines[i].trim())) {
+            i++;
+            break;
+          }
+          codeLines.push(lines[i]);
+          i++;
+        }
+        blocks.push(
+          '<pre><code' + (codeLang ? ' class="language-' + codeLang + '"' : '') + '>' +
+          codeLines.join('\n') + '</code></pre>'
+        );
+        continue;
+      }
 
       if (ulMatch || olMatch) {
         var tag = ulMatch ? 'ul' : 'ol';

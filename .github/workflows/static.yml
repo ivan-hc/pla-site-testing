@@ -33,8 +33,8 @@ jobs:
 
       - name: Build App Files
         run: |
-          sudo apt install wget -y
-          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.0/pla-site-tool_0.1.0-x86_64.AppImage"
+          sudo apt install --no-install-recommends wget imagemagick esbuild -y
+          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.0/pla-site-tool_0.1.1-x86_64.AppImage"
 
           [ ! -x ./pla-site-tool ] && chmod a+x ./pla-site-tool
           ./pla-site-tool 2>&1 | tee build-log.txt
@@ -43,9 +43,14 @@ jobs:
           [ ! -x ./gen_sitemap ] && chmod a+x ./gen_sitemap
           ./gen_sitemap public https://kazam0180.github.io/pla-site-testing/ 2>&1 | tee build-log.txt
 
-          cp -t public/ *.png *.ico
+          [ ! -x ./convert_icons ] && chmod a+x ./convert_icons
+          ./convert_icons public 2>&1 | tee build-log.txt
+
+          [ ! -x ./minify ] && chmod a+x ./minify
+          ./minify public 2>&1 | tee build-log.txt
+
+          cp -t public/ favicon.ico
           cp -t public/ -r assets
-          cp -t public/ -r icons
           cp -t public/ apps.html faq.html wiki.html sitemap.xml
 
           echo "site generated" | tee -a build-log.txt
