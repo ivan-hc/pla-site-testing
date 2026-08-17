@@ -34,7 +34,7 @@ jobs:
       - name: Build App Files
         run: |
           sudo apt install --no-install-recommends wget esbuild -y
-          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.1/pla-site-tool_0.1.1-x86_64.AppImage"
+          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.2/pla-site-tool_0.1.2-x86_64.AppImage"
           wget -O magick "https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-29/ImageMagick-7.1.2-29-gcc-x86_64.AppImage"
           sudo mv magick /usr/bin/
 
