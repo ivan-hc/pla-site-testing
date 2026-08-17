@@ -18,6 +18,10 @@
   <link rel="icon" href="../favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/app.css">
+  <link rel="preconnect" href="$APP_NAME.json">
+  <link rel="preconnect" href="assets/css/style.css">
+  <link rel="preconnect" href="assets/css/style.css">
+  <link rel="preconnect" href="assets/js/app_page.js">
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to main content</a>

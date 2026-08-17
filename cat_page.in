@@ -17,6 +17,9 @@
   <link rel="canonical" href="https://portable-linux-apps.github.io/$CAT_NAME.html">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="preconnect" href="categories/$CAT_NAME.json">
+  <link rel="preconnect" href="assets/js/script.js">
+  <link rel="preconnect" href="assets/css/style.css">
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to main content</a>
