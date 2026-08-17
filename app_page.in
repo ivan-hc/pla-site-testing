@@ -13,7 +13,7 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="$APP_NAME - PORTABLE LINUX APPS">
   <meta name="twitter:image" content="https://kazam0180.github.io/pla-site-testing/icons/$APP_NAME.webp">
-  <meta name="twitter:description" content="$APP_DESC | Available as a portable app!">
+  <meta name="twitter:description" content="$APP_DESC">
   <link rel="canonical" href="https://portable-linux-apps.github.io/app/$APP_NAME.html">
   <link rel="icon" href="../favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="../assets/css/style.css">
