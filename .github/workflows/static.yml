@@ -34,7 +34,7 @@ jobs:
       - name: Build App Files
         run: |
           sudo apt install --no-install-recommends wget imagemagick esbuild -y
-          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.0/pla-site-tool_0.1.1-x86_64.AppImage"
+          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.1/pla-site-tool_0.1.1-x86_64.AppImage"
 
           [ ! -x ./pla-site-tool ] && chmod a+x ./pla-site-tool
           ./pla-site-tool 2>&1 | tee build-log.txt
