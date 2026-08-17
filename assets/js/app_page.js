@@ -39,7 +39,7 @@
         html += '<h2>Screenshots</h2>';
         html += '<div class="gallery-inner">';
         html += '<button class="gallery-btn" id="gal-prev" aria-label="Previous">&#8592;</button>';
-        html += '<img id="gal-img" src="' + app.screenshots[0] + '" alt="Screenshot">';
+        html += '<img id="gal-img" fetchpriority="high" src="' + app.screenshots[0] + '" alt="Screenshot">';
         html += '<button class="gallery-btn" id="gal-next" aria-label="Next">&#8594;</button>';
         html += '</div>';
         html += '<div class="gallery-dots" id="gal-dots"></div>';
