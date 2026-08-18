@@ -133,7 +133,6 @@
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
 .slide-head {
@@ -204,6 +203,7 @@
   gap: 0.75rem;
   align-items: center;
   justify-items: center;
+  margin: auto;
 }
 
 .shot-img {
