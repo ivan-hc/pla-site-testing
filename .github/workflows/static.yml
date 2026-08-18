@@ -57,6 +57,9 @@ jobs:
           ./minify public 2>&1 | tee build-log.txt
 
           cp -t public/ favicon.ico *.webp
+          cp -r assets/fonts public/assets/
+          cp -r casts public/
+          cp -r am-gui public/
           cp -t public/ apps.html wiki.html sitemap.xml
 
           echo "site generated" | tee -a build-log.txt

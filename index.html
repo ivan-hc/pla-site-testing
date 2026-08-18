@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/index.css">
   <link rel="stylesheet" href="assets/css/faq.css">
+  <link rel="stylesheet" href="assets/css/asciinema-player.css">
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to main content</a>
@@ -111,42 +112,42 @@
             <a class="slide-link" href="https://github.com/ivan-hc/AM">AM on GitHub &rarr;</a>
           </div>
           <div class="ascii-grid">
-            <a class="ascii-tile" href="https://asciinema.org/a/1263368" target="_blank" rel="noopener" aria-label="Watch AM demo: sandbox AppImages">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263368.svg" alt="sandbox AppImages">
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/sandbox.cast" role="img" aria-label="Watch AM demo: sandbox AppImages"></div>
               <span class="ascii-title">sandbox AppImages</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263369" target="_blank" rel="noopener" aria-label="Watch AM demo: list available apps">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263369.svg" alt="list available apps">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/list.cast" role="img" aria-label="Watch AM demo: list available apps"></div>
               <span class="ascii-title">list available apps</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263375" target="_blank" rel="noopener" aria-label="Watch AM demo: info about the apps">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263375.svg" alt="info about the apps">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/about.cast" role="img" aria-label="Watch AM demo: info about the apps"></div>
               <span class="ascii-title">info about the apps</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263372" target="_blank" rel="noopener" aria-label="Watch AM demo: install applications">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263372.svg" alt="install applications">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/install.cast" role="img" aria-label="Watch AM demo: install applications"></div>
               <span class="ascii-title">install applications</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263371" target="_blank" rel="noopener" aria-label="Watch AM demo: query lists using keywords">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263371.svg" alt="query lists using keywords">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/query.cast" role="img" aria-label="Watch AM demo: query lists using keywords"></div>
               <span class="ascii-title">query lists using keywords</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263367" target="_blank" rel="noopener" aria-label="Watch AM demo: show the installed apps">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263367.svg" alt="show the installed apps">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/files.cast" role="img" aria-label="Watch AM demo: show the installed apps"></div>
               <span class="ascii-title">show the installed apps</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263370" target="_blank" rel="noopener" aria-label="Watch AM demo: create and restore snapshots">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263370.svg" alt="create and restore snapshots">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/snapshot.cast" role="img" aria-label="Watch AM demo: create and restore snapshots"></div>
               <span class="ascii-title">create and restore snapshots</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263378" target="_blank" rel="noopener" aria-label="Watch AM demo: update everything">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263378.svg" alt="update everything">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/update.cast" role="img" aria-label="Watch AM demo: update everything"></div>
               <span class="ascii-title">update apps</span>
-            </a>
-            <a class="ascii-tile" href="https://asciinema.org/a/1263373" target="_blank" rel="noopener" aria-label="Watch AM demo: get rid of libfuse2">
-              <img class="ascii-shot" loading="lazy" src="https://asciinema.org/a/1263373.svg" alt="get rid of libfuse2">
+            </div>
+            <div class="ascii-tile">
+              <div class="ascii-player" data-cast="casts/nolibfuse.cast" role="img" aria-label="Watch AM demo: get rid of libfuse2"></div>
               <span class="ascii-title">get rid of libfuse2</span>
-            </a>
+            </div>
           </div>
         </div>
 
@@ -300,6 +301,8 @@ only use **bold**, *italic*, ++underline++, lists markdown here
   <p>&copy; 2020-present Ivan Alessandro Sala aka 'Ivan-HC' &mdash; I'm here just for fun!</p>
 </footer>
 
+<script src="assets/js/asciinema-player.min.js"></script>
+<script src="assets/js/casts.js"></script>
 <script src="assets/js/carousel.js"></script>
 
 </body>

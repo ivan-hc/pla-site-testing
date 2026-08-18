@@ -7,9 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var prevBtn = carousel.querySelector('.carousel-prev');
   var nextBtn = carousel.querySelector('.carousel-next');
   var dotsWrap = carousel.querySelector('.carousel-dots');
-  var AUTOPLAY_MS = 6000;
   var index = 0;
-  var timer = null;
 
   if (!track || slides.length < 2) return;
 
@@ -22,7 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
       dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
       dot.addEventListener('click', function () {
         goTo(i);
-        restart();
       });
       dotsWrap.appendChild(dot);
       dots.push(dot);
@@ -39,34 +36,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function start() {
-    if (timer) return;
-    timer = setInterval(function () { goTo(index + 1); }, AUTOPLAY_MS);
-  }
-
-  function stop() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-  }
-
-  function restart() {
-    stop();
-    start();
-  }
-
-  prevBtn.addEventListener('click', function () { goTo(index - 1); restart(); });
-  nextBtn.addEventListener('click', function () { goTo(index + 1); restart(); });
-
-  carousel.addEventListener('mouseenter', stop);
-  carousel.addEventListener('mouseleave', start);
-  carousel.addEventListener('focusin', stop);
-  carousel.addEventListener('focusout', start);
+  prevBtn.addEventListener('click', function () { goTo(index - 1); });
+  nextBtn.addEventListener('click', function () { goTo(index + 1); });
 
   goTo(0);
-
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    start();
-  }
 });

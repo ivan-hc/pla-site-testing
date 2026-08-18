@@ -1,3 +1,12 @@
+/* Asciinema font */
+@font-face {
+  font-family: 'Fira Code';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('../fonts/FiraCode-latin.woff2') format('woff2');
+}
+
 /* Hero */
 .hero {
   background: var(--color-hero-bg);
@@ -162,25 +171,19 @@
   border-radius: var(--radius);
   background: var(--color-hero-bg);
   overflow: hidden;
-  transition: border-color 0.15s, transform 0.15s;
 }
 
-.ascii-tile:hover {
-  border-color: var(--color-accent);
-  transform: translateY(-2px);
-  text-decoration: none;
-}
-
-.ascii-tile:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-border), 0 0 0 4px rgba(88, 166, 255, 0.4);
-}
-
-.ascii-shot {
+.ascii-player {
   width: 100%;
-  height: auto;
-  display: block;
-  background: var(--color-hero-bg);
+}
+
+.ascii-player .asciinema-terminal {
+  margin: 0;
+  border-radius: 0;
+}
+
+.ascii-player .ap-term-text {
+  font-weight: 600;
 }
 
 .ascii-title {
