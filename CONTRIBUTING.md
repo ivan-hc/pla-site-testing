@@ -4,7 +4,7 @@ This catalog is the frontend of the [AM](https://github.com/ivan-hc/AM) package 
 
 The category pages and app pages are built by the [`pla-site-tool`](https://gitlab.com/kazam0180/pla-site-tool) generator and deployed with another [workflow](.github/workflows/static.yml) on every push to `main`.
 
-**Any app that is not listed in AM will be automatically removed from this catalog!**
+**Any app that is not listed in AM will be automatically removed from this catalog!**<br>
 However, you are allowed to add icons and edit the app files of existing apps, and to contribute to the website itself.
 
 ## Adding an app
