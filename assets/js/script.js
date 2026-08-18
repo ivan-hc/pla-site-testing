@@ -48,9 +48,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      var meta = document.getElementById('category-meta');
-      if (meta) meta.textContent = 'Here are listed ' + dataArray.length + ' apps for this category.';
-
       var cache = [];
       for (var i = 0; i < dataArray.length; i++) {
         cache.push({
