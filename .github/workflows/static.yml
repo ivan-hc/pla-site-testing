@@ -34,7 +34,7 @@ jobs:
       - name: Build App Files
         run: |
           sudo apt install --no-install-recommends wget esbuild -y
-          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.2/pla-site-tool_0.1.2-x86_64.AppImage"
+          wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.3/pla-site-tool_0.1.3-x86_64.AppImage"
           wget -O magick "https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-29/ImageMagick-7.1.2-29-gcc-x86_64.AppImage"
           chmod a+x magick
           ./magick --appimage-extract
@@ -57,7 +57,7 @@ jobs:
           ./minify public 2>&1 | tee build-log.txt
 
           cp -t public/ favicon.ico *.webp
-          cp -t public/ apps.html faq.html wiki.html sitemap.xml
+          cp -t public/ apps.html wiki.html sitemap.xml
 
           echo "site generated" | tee -a build-log.txt
 

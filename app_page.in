@@ -29,7 +29,7 @@
 <nav aria-label="Main navigation">
   <a href="../index.html">Home</a>
   <a href="../apps.html">Apps</a>
-  <a href="../faq.html">FAQ</a>
+  <a href="../index.html#faq">FAQ</a>
   <a href="../wiki.html">Wiki</a>
   <a href="https://github.com/ivan-hc/AM">AM on GitHub</a>
 </nav>
@@ -49,7 +49,7 @@
   <div class="footer-links">
     <a href="../index.html">Home</a>
     <a href="../apps.html">Apps</a>
-    <a href="../faq.html">FAQ</a>
+    <a href="../index.html#faq">FAQ</a>
     <a href="../wiki.html">Wiki</a>
   </div>
   <div class="footer-links">
