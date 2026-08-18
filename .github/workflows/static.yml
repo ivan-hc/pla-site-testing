@@ -31,30 +31,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Cache converted icons
+        id: icon-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/icons
+          key: icons-${{ hashFiles('icons/**', 'no-icon.png', 'convert_icons') }}
+
       - name: Build App Files
         run: |
           sudo apt install --no-install-recommends wget esbuild -y
           wget -O pla-site-tool "https://github.com/kazam0180/portable-apps/releases/download/pla-site-tool-0.1.3/pla-site-tool_0.1.3-x86_64.AppImage"
-          wget -O magick "https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-29/ImageMagick-7.1.2-29-gcc-x86_64.AppImage"
-          chmod a+x magick
-          ./magick --appimage-extract
-          ls squashfs-root
-          sudo cp -r squashfs-root/usr/* /usr/
-          sudo chmod a+x /usr/bin/magick
-          rm -rf magick squashfs-root
+
+          if [ ! -d .cache/icons ]; then
+            wget -O magick "https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-29/ImageMagick-7.1.2-29-gcc-x86_64.AppImage"
+            chmod a+x magick
+            ./magick --appimage-extract
+            ls squashfs-root
+            sudo cp -r squashfs-root/usr/* /usr/
+            sudo chmod a+x /usr/bin/magick
+            rm -rf magick squashfs-root
+          else
+            echo "icon cache hit, skipping ImageMagick download" | tee build-log.txt
+          fi
 
           [ ! -x ./pla-site-tool ] && chmod a+x ./pla-site-tool
-          ./pla-site-tool 2>&1 | tee build-log.txt
+          ./pla-site-tool 2>&1 | tee -a build-log.txt
 
           rm -f sitemap.xml
           [ ! -x ./gen_sitemap ] && chmod a+x ./gen_sitemap
-          ./gen_sitemap public https://kazam0180.github.io/pla-site-testing/ 2>&1 | tee build-log.txt
+          ./gen_sitemap public https://kazam0180.github.io/pla-site-testing/ 2>&1 | tee -a build-log.txt
 
-          [ ! -x ./convert_icons ] && chmod a+x ./convert_icons
-          ./convert_icons public 2>&1 | tee build-log.txt
+          if [ -d .cache/icons ]; then
+            mkdir -p public/icons public/icons_48
+            cp -r .cache/icons/public/icons/. public/icons/
+            cp -r .cache/icons/public/icons_48/. public/icons_48/
+            cp .cache/icons/public/no-icon.webp public/no-icon.webp
+            cp .cache/icons/public/no-icon_48.webp public/no-icon_48.webp
+            echo "icons restored from cache" | tee -a build-log.txt
+          else
+            [ ! -x ./convert_icons ] && chmod a+x ./convert_icons
+            ./convert_icons public 2>&1 | tee -a build-log.txt
+            mkdir -p .cache/icons/public
+            cp -r public/icons .cache/icons/public/
+            cp -r public/icons_48 .cache/icons/public/
+            cp public/no-icon.webp .cache/icons/public/
+            cp public/no-icon_48.webp .cache/icons/public/
+          fi
 
           [ ! -x ./minify ] && chmod a+x ./minify
-          ./minify public 2>&1 | tee build-log.txt
+          ./minify public 2>&1 | tee -a build-log.txt
 
           cp -t public/ favicon.ico *.webp
           cp -r assets/fonts public/assets/

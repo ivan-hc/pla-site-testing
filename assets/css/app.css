@@ -190,6 +190,7 @@
   transform: translateX(0);
   transition: opacity 0.16s ease, transform 0.16s ease;
   will-change: opacity, transform;
+  min-width: 0;
 }
 
 /* Disable gallery animations on reduced motion */
@@ -227,6 +228,8 @@
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
   user-select: none;
+  margin-right: 4px;
+  margin-left: 4px;
 }
 
 .gallery-btn:focus {
