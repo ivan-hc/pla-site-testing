@@ -80,7 +80,7 @@ chmod +x pla-site-tool
 ./minify public           # requires esbuild
 ```
 
-Note: `public/` is the build output and is gitignored — never commit it.
+Note: `public/` is the build output and is gitignored.
 
 ------------------------------------
 
