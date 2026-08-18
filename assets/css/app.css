@@ -1,5 +1,6 @@
 .app-detail-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
   padding: 2rem 1.5rem;
@@ -11,16 +12,19 @@
   width: 80px;
   height: 80px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .app-detail-header div {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
 }
 
 .app-detail-header h1 {
   font-size: 1.75rem;
   font-weight: 800;
   margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
 }
 
 .app-detail-header .app-meta {
@@ -67,6 +71,11 @@
 
 .app-body-content p {
   margin-bottom: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.app-body-content a {
+  overflow-wrap: anywhere;
 }
 
 .app-body-content ul,
@@ -164,8 +173,8 @@
     max-height: 320px;
   }
   .gallery-dot {
-    width: 0.75rem;
-    height: 0.75rem;
+    width: 48px;
+    height: 48px;
   }
 }
 
@@ -245,13 +254,13 @@
 }
 
 .gallery-dot {
-  width: 48px;
-  height: 48px;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: transparent;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .gallery-dot:focus {
@@ -285,11 +294,13 @@
 
 .app-links-section li a {
   display: inline-block;
+  max-width: 100%;
   padding: 0.375rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   font-size: 0.8125rem;
   font-weight: 500;
+  overflow-wrap: anywhere;
   transition: border-color 0.15s, background 0.15s;
 }
 

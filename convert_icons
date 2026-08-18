@@ -42,3 +42,4 @@ for img in "$SITE_DIR"/icons/*.webp; do
     $MAGICK "$img" -resize 48x48 "$SITE_DIR/icons_48/$(basename "$img")"
 done
 
+$MAGICK "$SITE_DIR/no-icon.webp" -resize 48x48 "$SITE_DIR/no-icon_48.webp"
