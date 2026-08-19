@@ -33,7 +33,7 @@ jobs:
 
       - name: Cache converted icons
         id: icon-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/icons
           key: icons-${{ hashFiles('icons/**', 'no-icon.png', 'convert_icons') }}
