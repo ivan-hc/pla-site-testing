@@ -64,6 +64,7 @@ jobs:
 
           [ ! -x ./pla-site-tool ] && chmod a+x ./pla-site-tool
           ./pla-site-tool 2>&1 | tee -a build-log.txt
+          test ${PIPESTATUS[0]} -eq 0 || { echo "pla-site-tool failed, aborting build" | tee -a build-log.txt; exit 1; }
 
           rm -f sitemap.xml
           [ ! -x ./gen_sitemap ] && chmod a+x ./gen_sitemap
