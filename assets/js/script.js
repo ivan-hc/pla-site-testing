@@ -62,6 +62,24 @@ document.addEventListener('DOMContentLoaded', function() {
       var input = document.getElementById('search-input');
       var arch = document.getElementById('arch-select');
 
+      // Parse ?s=term and ?a=arch from URL and initialize search/arch
+      function getUrlParam(name) {
+        var params = new URLSearchParams(window.location.search);
+        return params.get(name) || '';
+      }
+      var searchParam = getUrlParam('s');
+      var archParam = getUrlParam('a');
+      if (input && searchParam) {
+        input.value = searchParam;
+      }
+      if (arch && archParam) {
+        arch.value = archParam;
+      }
+      // Trigger filter immediately for initial URL-based search/arch
+      if ((input && searchParam) || (arch && archParam)) {
+        setTimeout(applyFilters, 0);
+      }
+
       function applyFilters() {
         var terms = input ? input.value.toLowerCase().split(/\s+/).filter(Boolean) : [];
         var selectedArch = arch ? arch.value : '';

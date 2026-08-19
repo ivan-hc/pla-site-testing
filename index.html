@@ -45,6 +45,25 @@
   <strong>$UNIQUE_COUNT</strong> unique apps &mdash; <strong>$APPIMAGE_COUNT</strong> AppImage packages &mdash; <strong>$PORTABLE_COUNT</strong> standalone/portable programs &mdash; <strong>$ITEMS_COUNT</strong> items
 </div>
 
+<div class="search-box home-search">
+  <form id="home-search-form" onsubmit="handleHomeSearch(event)">
+    <label for="home-search-input" class="visually-hidden">Search apps</label>
+    <input type="search" id="home-search-input" placeholder="Search apps..." autocomplete="off">
+    <label for="home-arch-select" class="visually-hidden">Filter by architecture</label>
+    <select name="arch" id="home-arch-select">
+      <option value="">All architectures</option>
+      <option value="x86_64">x86_64</option>
+      <option value="aarch64">aarch64</option>
+      <option value="i686">i686</option>
+    </select>
+    <label for="home-cat-select" class="visually-hidden">Filter by category</label>
+    <select name="category" id="home-cat-select">
+      <option value="">All categories</option>
+    </select>
+    <button type="submit" class="visually-hidden">Search</button>
+  </form>
+</div>
+
 <hr class="section-divider">
 
 <section>
@@ -304,6 +323,36 @@ only use **bold**, *italic*, ++underline++, lists markdown here
 <script src="assets/js/asciinema-player.min.js"></script>
 <script src="assets/js/casts.js"></script>
 <script src="assets/js/carousel.js"></script>
+<script>
+function handleHomeSearch(event) {
+  event.preventDefault();
+  var input = document.getElementById('home-search-input');
+  var archSelect = document.getElementById('home-arch-select');
+  var catSelect = document.getElementById('home-cat-select');
+
+  var searchTerm = input ? input.value.trim() : '';
+  var arch = archSelect ? archSelect.value : '';
+  var category = catSelect ? catSelect.value : '';
+
+  // If category is selected, go to category page with search and arch params
+  if (category) {
+    var url = category + '.html';
+    var params = [];
+    if (searchTerm) params.push('s=' + encodeURIComponent(searchTerm));
+    if (arch) params.push('a=' + encodeURIComponent(arch));
+    if (params.length > 0) url += '?' + params.join('&');
+    window.location.href = url;
+  } else {
+    // No category selected, go to apps.html with search and arch params
+    var url = 'apps.html';
+    var params = [];
+    if (searchTerm) params.push('s=' + encodeURIComponent(searchTerm));
+    if (arch) params.push('a=' + encodeURIComponent(arch));
+    if (params.length > 0) url += '?' + params.join('&');
+    window.location.href = url;
+  }
+}
+</script>
 
 </body>
 </html>
