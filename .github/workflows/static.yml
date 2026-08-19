@@ -38,6 +38,13 @@ jobs:
           path: .cache/icons
           key: icons-${{ hashFiles('icons/**', 'no-icon.png', 'convert_icons') }}
 
+      - name: Cache screenshots
+        id: screenshots-cache
+        uses: actions/cache@v6
+        with:
+          path: .cache/screenshots
+          key: screenshots-${{ hashFiles('convert_screenshots') }}
+
       - name: Build App Files
         run: |
           sudo apt install --no-install-recommends wget esbuild -y
@@ -78,6 +85,18 @@ jobs:
             cp public/no-icon.webp .cache/icons/public/
             cp public/no-icon_48.webp .cache/icons/public/
           fi
+
+          if ! command -v magick >/dev/null 2>&1; then
+            wget -O magick "https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-29/ImageMagick-7.1.2-29-gcc-x86_64.AppImage"
+            chmod a+x magick
+            ./magick --appimage-extract
+            sudo cp -r squashfs-root/usr/* /usr/
+            sudo chmod a+x /usr/bin/magick
+            rm -rf magick squashfs-root
+          fi
+
+          [ ! -x ./convert_screenshots ] && chmod a+x ./convert_screenshots
+          ./convert_screenshots public 2>&1 | tee -a build-log.txt
 
           [ ! -x ./minify ] && chmod a+x ./minify
           ./minify public 2>&1 | tee -a build-log.txt
