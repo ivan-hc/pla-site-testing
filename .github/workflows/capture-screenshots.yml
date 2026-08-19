@@ -1,0 +1,70 @@
+name: Capture missing screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      max-apps:
+        description: Maximum number of apps to capture (one issue per app)
+        required: false
+        type: number
+        default: 10
+      delay:
+        description: Seconds to wait for each app window to open
+        required: false
+        type: number
+        default: 8
+      shuffle:
+        description: Randomize which apps are picked first
+        required: false
+        type: boolean
+        default: false
+
+# The default GITHUB_TOKEN writes issues here and uploads images to the
+# "screenshots-captured" release so the issues can embed them inline.
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: capture-screenshots
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+            xvfb x11-xserver-utils imagemagick unzip p7zip-full xz-utils \
+            binutils file curl wget jq libfuse2 dbus dbus-x11 fonts-dejavu-core
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install AppMan (AM user-mode, no root)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSLo "$HOME/.local/bin/appman" \
+            https://raw.githubusercontent.com/ivan-hc/AM/main/APP-MANAGER
+          chmod a+x "$HOME/.local/bin/appman"
+          appman_location="$HOME/Applications" appman -v
+
+      - name: Install teasr
+        run: |
+          curl -fsSLo "$HOME/.local/bin/teasr" \
+            "https://github.com/urmzd/teasr/releases/latest/download/teasr-x86_64-unknown-linux-gnu"
+          chmod a+x "$HOME/.local/bin/teasr"
+          teasr --version
+
+      - name: Capture screenshots and file issues
+        env:
+          REPO: ${{ github.repository }}
+          MAX_APPS: ${{ inputs.max-apps }}
+          DELAY: ${{ inputs.delay }}
+          SHUFFLE: ${{ inputs.shuffle }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/capture-app-screenshots.sh
