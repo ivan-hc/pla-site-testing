@@ -6,7 +6,6 @@ is missing, empty, or still holds the `contribute_ss.webp` placeholder.
 
 Exclusions are read from `app-screenshot-blacklist` next to this script.
 """
-import json
 import os
 import re
 import sys
@@ -40,4 +39,4 @@ for fname in sorted(os.listdir(APPS_DIR)):
 if len(sys.argv) > 2 and sys.argv[2] == "shuffle":
     random.shuffle(candidates)
 
-print(json.dumps(candidates))
+print("\n".join(candidates))
