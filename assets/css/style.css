@@ -344,6 +344,28 @@ section h2 {
   margin-bottom: 1rem;
 }
 
+.home-search-box {
+  text-align: center;
+}
+
+.home-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.home-search-form input[type="search"] {
+  flex: 1;
+  min-width: 200px;
+}
+
+.home-search-form select {
+  flex: 0 0 auto;
+}
+
 select {
   background: transparent;
   border: 1px solid var(--color-border);
@@ -352,7 +374,8 @@ select {
   padding: 0.5rem 0.75rem;
 }
 
-#search-input {
+#search-input,
+#home-search-input {
   width: 100%;
   max-width: 480px;
   padding: 0.5em 0.75em;
@@ -364,7 +387,8 @@ select {
   box-sizing: border-box;
 }
 
-#search-input:focus {
+#search-input:focus,
+#home-search-input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
 }

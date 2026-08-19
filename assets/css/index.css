@@ -42,13 +42,17 @@
 .stats {
   text-align: center;
   padding: 1.5rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
   font-size: 0.875rem;
   color: var(--color-text-muted);
+  margin: 0 8rem 0 8rem;
 }
 
 .stats strong {
   color: var(--color-text);
+}
+
+.stats p {
+  padding-top: 1.5rem;
 }
 
 /* CTAs */
@@ -285,6 +289,12 @@
 }
 
 @media (max-width: 640px) {
+  .stats {
+    margin: 0 1.5rem;
+  }
+  .home-search-form {
+    padding: 0 1.5rem;
+  }
   .carousel-slide {
     padding: 1rem;
   }

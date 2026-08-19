@@ -42,11 +42,12 @@
 </header>
 
 <div class="stats">
-  <strong>$UNIQUE_COUNT</strong> unique apps &mdash; <strong>$APPIMAGE_COUNT</strong> AppImage packages &mdash; <strong>$PORTABLE_COUNT</strong> standalone/portable programs &mdash; <strong>$ITEMS_COUNT</strong> items
+  <strong>$UNIQUE_COUNT</strong> unique apps &mdash; <strong>$APPIMAGE_COUNT</strong> AppImage packages &mdash; <strong>$PORTABLE_COUNT</strong> standalone/portable programs &mdash; <strong>$SUITS_COUNT</strong> metapackages with <strong>$ITEMS_COUNT</strong> items
+  <p><i>From here you can download them, install them, update them (for real), get more information about the sources and their developers... and if you want, you can contribute yourself by adding the missing information, because this site is <strong>open source</strong>!</i></p>
 </div>
 
-<div class="search-box home-search">
-  <form id="home-search-form" onsubmit="handleHomeSearch(event)">
+<div class="search-box home-search-box">
+  <form id="home-search-form" onsubmit="handleHomeSearch(event)" class="home-search-form">
     <label for="home-search-input" class="visually-hidden">Search apps</label>
     <input type="search" id="home-search-input" placeholder="Search apps..." autocomplete="off">
     <label for="home-arch-select" class="visually-hidden">Filter by architecture</label>
@@ -63,8 +64,6 @@
     <button type="submit" class="visually-hidden">Search</button>
   </form>
 </div>
-
-<hr class="section-divider">
 
 <section>
   <h2>Categories</h2>
