@@ -9,7 +9,6 @@ ClamUI is a modern Linux desktop application that provides a user-friendly graph
  - Graceful handling when ClamAV is not installed
  - Modern Adwaita styling with proper GNOME integration
 ===
-# SCREENSHOTS: https://github.com/linx-systems/clamui/blob/master/screenshots/main_view.png
 # SITES: https://github.com/linx-systems/clamui
 # SOURCES: 
 # BUTTONS: 
