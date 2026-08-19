@@ -39,7 +39,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update -q
+          # Azure repositories are flaky, remove them.
+          sudo rm -f /etc/apt/sources.list.d/{azure,microsoft}*
+          sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
             xvfb x11-xserver-utils imagemagick unzip p7zip-full xz-utils \
             binutils file curl wget jq libfuse2 dbus dbus-x11 fonts-dejavu-core
