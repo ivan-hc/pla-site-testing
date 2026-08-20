@@ -4,7 +4,7 @@
 # Environment:
 #   REPO      GitHub repo in owner/name form (default: current repo)
 #   MAX_APPS  how many apps to process in this run (default: 10)
-#   DELAY     seconds to wait for each app window (default: 8)
+#   DELAY     seconds to wait for each app window (default: 20)
 #   SHUFFLE   any value -> randomize app order instead of alphabetical
 #   GITHUB_STEP_SUMMARY  set by GitHub Actions (optional, for the run summary)
 
@@ -260,7 +260,7 @@ for app in "${APPS[@]}"; do
     # process failures -- needs --disable-gpu (and --no-sandbox too, same
     # stderr-asking-for-it rationale as above)
     gpu_hint() {
-        grep -qi -E 'gpu process|gpu.*(fail|usable|crash)|vk[A-Z][a-z]+\(|vulkan|dri3|libOpenGL|libEGL' \
+        grep -qi -E 'gpu process|gpu.*(fail|usable|crash)|vk[A-Za-z]+\(|vulkan|dri3|libOpenGL|libEGL|angle|eglinitialize' \
             "$WORK_DIR/$app.launch.log" 2>/dev/null || return 1
     }
 
