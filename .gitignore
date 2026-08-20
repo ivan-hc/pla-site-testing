@@ -7,3 +7,4 @@ Thumbs.db  # Windows
 public
 
 .cache
+__pycache__

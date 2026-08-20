@@ -8,8 +8,11 @@
 #   SETTLE_DELAY  seconds to wait after the window maps, before capturing
 #                 (default: 6) -- window mapping isn't the same as the app
 #                 finishing rendering its content
-#   SHUFFLE   any value -> randomize app order instead of alphabetical
 #   GITHUB_STEP_SUMMARY  set by GitHub Actions (optional, for the run summary)
+#
+# Apps are always processed in alphabetical order, so consecutive runs retry
+# the same failed apps (those that created no issue stay in the candidate
+# list) until they capture or get an issue.
 
 set -euo pipefail
 
@@ -59,7 +62,7 @@ trap cleanup EXIT
 
 # --- candidate selection ----------------------------------------------------
 mapfile -t APPS < <(
-    python3 "$SCRIPT_DIR/select-apps-missing-screenshots.py" "${GITHUB_WORKSPACE:-$PWD}/apps" "${SHUFFLE:+shuffle}"
+    python3 "$SCRIPT_DIR/select-apps-missing-screenshots.py" "${GITHUB_WORKSPACE:-$PWD}/apps"
 )
 log "apps needing screenshots: ${#APPS[@]} (processing up to $MAX_APPS)"
 
@@ -221,14 +224,30 @@ for app in "${APPS[@]}"; do
             timeout 10 xwininfo -root -tree 2>/dev/null | tail -n 15 > "$WORK_DIR/$app.tree.log" || true
         fi
 
-        # window-targeted capture; fall back to root if it yields nothing
-        timeout 20 import -display "$DISPLAY" -window "${main_wid:-root}" \
-            "$WORK_DIR/out/$app.png" >"$WORK_DIR/$app.import.log" 2>&1 || true
-        if [ ! -s "$WORK_DIR/out/$app.png" ]; then
-            log "  window capture empty, falling back to root"
-            timeout 20 import -display "$DISPLAY" -window root \
-                "$WORK_DIR/out/$app.png" >>"$WORK_DIR/$app.import.log" 2>&1 || true
-        fi
+        # window-targeted capture; fall back to root if it yields nothing.
+        # xwd reads the X server raw XGetImage (no MIT-SHM), which import's
+        # XShmGetImage path can fail with "Resource temporarily unavailable"
+        # on CI runners for all windows, root included; on hosts with both,
+        # try xwd first and keep import as a backup.
+        captured=""
+        for target in "${main_wid:-root}" root; do
+            [ -z "$captured" ] || break
+            if command -v xwd >/dev/null 2>&1; then
+                timeout 20 xwd -display "$DISPLAY" -silent -id "$target" \
+                    -out "$WORK_DIR/out/$app.xwd" >"$WORK_DIR/$app.import.log" 2>&1 || true
+                if [ -s "$WORK_DIR/out/$app.xwd" ]; then
+                    convert "$WORK_DIR/out/$app.xwd" "$WORK_DIR/out/$app.png" \
+                        >>"$WORK_DIR/$app.import.log" 2>&1 || true
+                    rm -f "$WORK_DIR/out/$app.xwd"
+                fi
+            fi
+            if [ ! -s "$WORK_DIR/out/$app.png" ]; then
+                log "  xwd empty for ${target}, falling back to import"
+                timeout 20 import -display "$DISPLAY" -window "$target" \
+                    "$WORK_DIR/out/$app.png" >>"$WORK_DIR/$app.import.log" 2>&1 || true
+            fi
+            [ -s "$WORK_DIR/out/$app.png" ] && captured=1 || true
+        done
         stop_apps
         if [ -s "$WORK_DIR/out/$app.png" ]; then
             printf '%s' "$WORK_DIR/out/$app.png"

@@ -3,13 +3,13 @@
 
 Prints a JSON array of app file names (AM app IDs) whose `# SCREENSHOTS:` line
 is missing, empty, or still holds the `contribute_ss.webp` placeholder.
+Sorted alphabetically so repeated runs retry the same failing apps.
 
 Exclusions are read from `app-screenshot-blacklist` next to this script.
 """
 import os
 import re
 import sys
-import random
 from urllib.request import urlopen
 import json
 
@@ -37,8 +37,5 @@ for fname in sorted(os.listdir(APPS_DIR)):
     m = re.search(r"^#\s*SCREENSHOTS\s*:\s*(.*?)\s*$", text, re.M)
     if not m or not m.group(1).strip() or PLACEHOLDER.search(m.group(1)):
         candidates.append(fname)
-
-if len(sys.argv) > 2 and sys.argv[2] == "shuffle":
-    random.shuffle(candidates)
 
 print("\n".join(candidates))
