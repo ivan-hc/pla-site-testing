@@ -32,6 +32,11 @@ export ELECTRON_DISABLE_SANDBOX=1
 export MOZ_DISABLE_SANDBOX=1
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
+# Mesa tries DRI3 first, which needs a real GPU device node Xvfb doesn't
+# have; the fallback to DRI2/software (swrast) doesn't always happen
+# cleanly on its own ("glx: failed to create drisw screen" -- pinta,
+# qppcad). Forcing DRI3 off skips straight to the path Xvfb supports.
+export LIBGL_DRI3_DISABLE=1
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
 # how long to wait after a window is found (mapped) before capturing --
 # window mapping doesn't mean rendering is finished, especially for
