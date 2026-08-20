@@ -179,12 +179,12 @@ for app in "${APPS[@]}"; do
         # then get mistaken for the *next* app's window)
         local wid wpid
         while read -r wid size rest; do
-            wpid=$(xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
+            wpid=$(timeout 5 xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
             [ -n "${wpid:-}" ] || continue
             if [ "${wpid:-0}" -ne "${LAUNCH_PGID:-0}" ] && kill -0 "$wpid" 2>/dev/null; then
                 kill -9 "$wpid" 2>/dev/null || true
             fi
-        done < <(xwininfo -root -children 2>/dev/null \
+        done < <(timeout 10 xwininfo -root -children 2>/dev/null \
             | grep -E '^     0x[0-9a-f]+ ' \
             | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+\+/) { print $1, $i; break } }')
         sleep 1
@@ -197,33 +197,36 @@ for app in "${APPS[@]}"; do
         # poll for the window instead of one fixed sleep: some apps (SDL
         # engines especially) take much longer than others to map their
         # window, and a fixed sleep either wastes time on fast apps or
-        # misses the window entirely on slow ones.
-        local main_wid="" waited=0
-        while [ "$waited" -lt "$DELAY" ]; do
+        # misses the window entirely on slow ones. Bound by actual elapsed
+        # time (not iteration count) so a slow/unresponsive X server on a
+        # given app can't stall past $DELAY even with the per-call timeouts
+        # inside find_main_window.
+        local main_wid="" start_ts=$SECONDS
+        while [ "$((SECONDS - start_ts))" -lt "$DELAY" ]; do
             main_wid=$(find_main_window)
             [ -n "$main_wid" ] && break
             sleep 1
-            waited=$((waited + 1))
         done
+        local waited=$((SECONDS - start_ts))
 
         if [ -n "$main_wid" ]; then
             log "  window found after ${waited}s: $main_wid"
-            xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || \
+            timeout 5 xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || \
                 log "  windowsize rejected (fixed-size window)"
             log "  settling ${SETTLE_DELAY}s before capture"
             sleep "$SETTLE_DELAY"
             # capturing the window itself crops any blank space around it
         else
             log "  no window found on display after ${DELAY}s, capturing full root"
-            xwininfo -root -tree 2>/dev/null | tail -n 15 > "$WORK_DIR/$app.tree.log" || true
+            timeout 10 xwininfo -root -tree 2>/dev/null | tail -n 15 > "$WORK_DIR/$app.tree.log" || true
         fi
 
         # window-targeted capture; fall back to root if it yields nothing
-        import -display "$DISPLAY" -window "${main_wid:-root}" \
+        timeout 20 import -display "$DISPLAY" -window "${main_wid:-root}" \
             "$WORK_DIR/out/$app.png" >"$WORK_DIR/$app.import.log" 2>&1 || true
         if [ ! -s "$WORK_DIR/out/$app.png" ]; then
             log "  window capture empty, falling back to root"
-            import -display "$DISPLAY" -window root \
+            timeout 20 import -display "$DISPLAY" -window root \
                 "$WORK_DIR/out/$app.png" >>"$WORK_DIR/$app.import.log" 2>&1 || true
         fi
         stop_apps
@@ -248,14 +251,14 @@ for app in "${APPS[@]}"; do
             area=$((w * h))
             # must be mapped+viewable: xwininfo -children lists windows that
             # are not currently viewable too, and import fails on those
-            xwininfo -id "$wid" 2>/dev/null | grep -q 'Map State: IsViewable' || continue
+            timeout 5 xwininfo -id "$wid" 2>/dev/null | grep -q 'Map State: IsViewable' || continue
             # remember any viewable window as fallback
             if [ "$area" -gt "$fallarea" ]; then
                 fallarea=$area
                 fallback=$wid
             fi
             # tightly-scoped preference: window owned by this app's pgid
-            wpid=$(xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
+            wpid=$(timeout 5 xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
             [ -n "${wpid:-}" ] || continue
             pgid=$(ps -o pgid= -p "$wpid" 2>/dev/null | tr -d ' ')
             [ "$pgid" = "$LAUNCH_PGID" ] || continue
@@ -263,7 +266,7 @@ for app in "${APPS[@]}"; do
                 bestarea=$area
                 best=$wid
             fi
-        done < <(xwininfo -root -children 2>/dev/null \
+        done < <(timeout 10 xwininfo -root -children 2>/dev/null \
             | grep -E '^     0x[0-9a-f]+ ' \
             | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+\+/) { print $1, $i; break } }')
         printf '%s' "${best:-$fallback}"
