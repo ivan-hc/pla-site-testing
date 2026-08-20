@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -41,6 +42,13 @@ def magick_cmd():
 
 
 MAGICK = magick_cmd()
+
+LOG_LOCK = threading.Lock()
+
+
+def log(msg):
+    with LOG_LOCK:
+        print(msg, file=sys.stderr, flush=True)
 
 
 def stable_key(url):
@@ -149,7 +157,8 @@ def convert_to_webp(src_path, dst_path):
         return False
 
 
-def process_url(url, manifest, stats):
+def process_url(url, app, manifest, stats):
+    log(f"[{app}] processing {url}")
     key = stable_key(url)
     entry = manifest.get(url)
     dl_file = os.path.join(DL_DIR, f"{key}.{ext_for(url)}")
@@ -240,12 +249,16 @@ def main():
         return
 
     manifest = read_manifest()
+    if os.path.exists(MANIFEST):
+        log(f"cache: found ({len(manifest)} entries)")
+    else:
+        log("cache: not found (fresh run)")
     stats = {"downloaded": 0, "converted": 0, "unchanged": 0,
              "missing": 0, "failed": 0, "changed": 0}
     results = {}
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(process_url, url, manifest, stats): url for url in urls}
+        futures = {pool.submit(process_url, url, urls[url], manifest, stats): url for url in urls}
         for fut in futures:
             url = futures[fut]
             key = fut.result()

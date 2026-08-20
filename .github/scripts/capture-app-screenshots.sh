@@ -30,6 +30,7 @@ export DISPLAY="${DISPLAY:-:99}"
 
 results=()
 cleanup() {
+    [ -n "${WM_PID:-}" ] && kill "$WM_PID" 2>/dev/null || true
     [ -n "${XVFB_PID:-}" ] && kill "$XVFB_PID" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -51,6 +52,12 @@ fi
 Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 &
 XVFB_PID=$!
 sleep 2
+# a minimal WM gives windows sane stacking/focus; harmless if absent
+if command -v openbox >/dev/null 2>&1; then
+    openbox >/dev/null 2>&1 &
+    WM_PID=$!
+fi
+sleep 1
 
 count=0
 for app in "${APPS[@]}"; do
@@ -94,58 +101,65 @@ for app in "${APPS[@]}"; do
         continue
     fi
 
-    # capture with teasr (screen mode, window chrome).
-    # window = "$app" crops to the app's own window instead of the full
-    # 1280x800 display, which is what was causing the empty space around
-    # the app content. teasr matches window titles case-insensitively by
-    # substring, so this works whenever the window title contains the app
-    # id; if it doesn't, write_config_fullscreen below is the fallback.
-    write_config() {
-        cat > "$WORK_DIR/$app.toml" <<EOF
-[output]
-dir = "$WORK_DIR/out"
-formats = [{ output_type = "png" }]
+    # --- launch & capture under Xvfb (plain `import`, no teasr needed) ----
 
-[[scenes]]
-type = "screen"
-name = "$app"
-title = "$app"
-window = "$app"
-setup = "$1"
-delay = $((DELAY * 1000))
+    launch_app() {
+        setsid nohup dbus-run-session -- "$BIN" ${1:-} >"$WORK_DIR/$app.launch.log" 2>&1 &
+        echo $! > "$WORK_DIR/$app.pid"
+    }
+    stop_apps() {
+        local pid
+        pid=$(cat "$WORK_DIR/$app.pid" 2>/dev/null || true)
+        if [ -n "${pid:-}" ]; then
+            # setsid gives the app its own process group: kill the whole tree
+            kill -- -"$pid" 2>/dev/null || true
+            sleep 1
+            kill -9 -- -"$pid" 2>/dev/null || true
+            rm -f "$WORK_DIR/$app.pid"
+        fi
+        sleep 1
+    }
+    capture_once() {  # $1 = extra flag (empty or --no-sandbox)
+        rm -rf "$WORK_DIR/out"
+        mkdir -p "$WORK_DIR/out"
+        launch_app "${1:-}"
+        sleep "$DELAY"
 
-[[scenes.interactions]]
-type = "snapshot"
-EOF
-    }
-    # Fallback used only if window-targeted capture never finds a match:
-    # same as before, full display, at least gets *a* screenshot.
-    write_config_fullscreen() {
-        cat > "$WORK_DIR/$app.toml" <<EOF
-[output]
-dir = "$WORK_DIR/out"
-formats = [{ output_type = "png" }]
+        # find the app's main window: the largest top-level X window (ignores
+        # the tiny helper windows from xdg-portals, GTK scratch windows etc.)
+        local main_wid
+        main_wid=$(find_main_window)
+        if [ -n "$main_wid" ]; then
+            xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || true
+            sleep 1
+            # capturing the window itself crops any blank space around it
+        fi
 
-[[scenes]]
-type = "screen"
-name = "$app"
-title = "$app"
-setup = "$1"
-delay = $((DELAY * 1000))
+        import -display "$DISPLAY" -window "${main_wid:-root}" \
+            "$WORK_DIR/out/$app.png" 2>/dev/null || true
+        stop_apps
+        if [ -s "$WORK_DIR/out/$app.png" ]; then
+            printf '%s' "$WORK_DIR/out/$app.png"
+        fi
+    }
 
-[[scenes.interactions]]
-type = "snapshot"
-EOF
+    find_main_window() {
+        local wid size w h area best bestarea
+        best=""; bestarea=0
+        while read -r wid size rest; do
+            w=${size%x*}; h=${size#*x}
+            [ -n "${w:-}" ] && [ -n "${h:-}" ] || continue
+            area=$((w * h))
+            if [ "$area" -gt "$bestarea" ]; then
+                bestarea=$area
+                best=$wid
+            fi
+        done < <(xwininfo -root -children 2>/dev/null \
+            | grep -E '^     0x[0-9a-f]+ ' \
+            | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+\+/) { print $1, $i; break } }')
+        printf '%s' "$best"
     }
-    run_teasr() {
-        timeout 150 teasr run -c "$WORK_DIR/$app.toml" -o "$WORK_DIR/out" \
-            --scene-timeout 90 >"$WORK_DIR/$app.capture.log" 2>&1
-    }
-    shot_path() {
-        # out/ is wiped right before every capture attempt (see below), so
-        # anything here belongs to *this* app/attempt -- no name matching needed.
-        ls -t "$WORK_DIR"/out/*.png 2>/dev/null | head -n1
-    }
+
     is_blank() {
         if command -v identify >/dev/null 2>&1; then
             local colors
@@ -156,34 +170,28 @@ EOF
         fi
     }
 
-    SHOT=""
-    rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
-    write_config "nohup dbus-run-session -- $BIN >/dev/null 2>&1 &"
-    if run_teasr; then
-        SHOT=$(shot_path)
-    fi
-    if [ -z "$SHOT" ] || [ ! -s "$SHOT" ] || is_blank "$SHOT"; then
-        # many Electron/Chromium apps refuse to run without --no-sandbox
-        echo "no/blank capture, retrying with --no-sandbox" | tee -a "$WORK_DIR/log.txt"
-        rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
-        write_config "nohup dbus-run-session -- $BIN --no-sandbox >/dev/null 2>&1 &"
-        if run_teasr; then
-            SHOT=$(shot_path)
-        fi
-    fi
-    if [ -z "$SHOT" ] || [ ! -s "$SHOT" ] || is_blank "$SHOT"; then
-        # window title didn't match "$app" (common for apps whose window
-        # title differs from the AM app id) -- fall back to full display
-        # rather than failing the app outright.
-        echo "no window match, falling back to full-display capture" | tee -a "$WORK_DIR/log.txt"
-        rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
-        write_config_fullscreen "nohup dbus-run-session -- $BIN --no-sandbox >/dev/null 2>&1 &"
-        if run_teasr; then
-            SHOT=$(shot_path)
+    # Chromium/Electron log a distinctive message when they cannot start in
+    # the sandbox; adding --no-sandbox to a GTK/Qt app would just be eaten
+    # as a positional file argument (e.g. DIE's filename box), so only add
+    # the flag when the app's own stderr asks for it.
+    sandbox_hint() {
+        grep -qi -E 'no-sandbox|suid sandbox|failed to create sandbox|sandbox helper' \
+            "$WORK_DIR/$app.launch.log" 2>/dev/null || return 1
+    }
+
+    # first try without any flags
+    SHOT=$(capture_once "")
+    if [ -z "$SHOT" ] || is_blank "$SHOT"; then
+        if sandbox_hint; then
+            echo "sandbox error detected, retrying with --no-sandbox" | tee -a "$WORK_DIR/log.txt"
+            SHOT=$(capture_once "--no-sandbox")
+        else
+            echo "no/blank capture, retrying" | tee -a "$WORK_DIR/log.txt"
+            SHOT=$(capture_once "")
         fi
     fi
     if [ -z "$SHOT" ] || [ ! -s "$SHOT" ]; then
-        echo "capture failed ($(tail -n1 "$WORK_DIR/$app.capture.log"))" | tee -a "$WORK_DIR/log.txt"
+        echo "capture failed ($(tail -n1 "$WORK_DIR/$app.launch.log"))" | tee -a "$WORK_DIR/log.txt"
         results+=("FAIL $app (capture)")
         continue
     fi

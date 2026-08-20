@@ -43,8 +43,9 @@ jobs:
           sudo rm -f /etc/apt/sources.list.d/{azure,microsoft}*
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
-            xvfb x11-xserver-utils imagemagick unzip p7zip-full xz-utils \
-            binutils file curl wget jq libfuse2 dbus dbus-x11 fonts-dejavu-core
+            xvfb x11-xserver-utils x11-utils xdotool imagemagick unzip p7zip-full \
+            xz-utils binutils file curl wget jq libfuse2 dbus dbus-x11 \
+            fonts-dejavu-core openbox
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install AppMan (AM user-mode, no root)
@@ -54,13 +55,6 @@ jobs:
             https://raw.githubusercontent.com/ivan-hc/AM/main/APP-MANAGER
           chmod a+x "$HOME/.local/bin/appman"
           appman_location="$HOME/Applications" appman -v
-
-      - name: Install teasr
-        run: |
-          curl -fsSLo "$HOME/.local/bin/teasr" \
-            "https://github.com/urmzd/teasr/releases/latest/download/teasr-x86_64-unknown-linux-gnu"
-          chmod a+x "$HOME/.local/bin/teasr"
-          teasr --version
 
       - name: Capture screenshots and file issues
         env:
