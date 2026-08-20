@@ -48,7 +48,7 @@ export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
 # how long to wait after a window is found (mapped) before capturing --
 # window mapping doesn't mean rendering is finished, especially for
 # apps doing async content loading (QML, Electron renderer, etc.)
-export SETTLE_DELAY="${SETTLE_DELAY:-6}"
+export SETTLE_DELAY="${SETTLE_DELAY:-12}"
 # no sound hardware in CI: SDL apps (games etc.) abort at startup otherwise
 export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
 # OpenAL probes ALSA on its own, independent of SDL_AUDIODRIVER -- this is
@@ -61,6 +61,13 @@ export ALSOFT_DRIVERS=${ALSOFT_DRIVERS:-null}
 mkdir -p "$HOME/.config/alsa" 2>/dev/null || true
 printf 'pcm.!default { type null }\nctl.!default { type null }\n' > "$HOME/.asoundrc"
 export DISPLAY="${DISPLAY:-:99}"
+
+# prevent appimage integration dialog
+mkdir -p $HOME/.local/share/appimagekit /usr/share/appimagekit /etc/appimagekit
+touch $HOME/.local/share/appimagekit/no_desktopintegration
+touch /usr/share/appimagekit/no_desktopintegration
+touch /etc/appimagekit/no_desktopintegration
+export DESKTOPINTEGRATION="NO THANKS"
 
 results=()
 # log lines go to stderr, not stdout: capture_once is called via
