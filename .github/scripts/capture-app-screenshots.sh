@@ -29,6 +29,7 @@ export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
 export DISPLAY="${DISPLAY:-:99}"
 
 results=()
+log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$WORK_DIR/log.txt"; }
 cleanup() {
     [ -n "${WM_PID:-}" ] && kill "$WM_PID" 2>/dev/null || true
     [ -n "${XVFB_PID:-}" ] && kill "$XVFB_PID" 2>/dev/null || true
@@ -39,7 +40,7 @@ trap cleanup EXIT
 mapfile -t APPS < <(
     python3 "$SCRIPT_DIR/select-apps-missing-screenshots.py" "${GITHUB_WORKSPACE:-$PWD}/apps" "${SHUFFLE:+shuffle}"
 )
-echo "apps needing screenshots: ${#APPS[@]} (processing up to $MAX_APPS)" | tee -a "$WORK_DIR/log.txt"
+log "apps needing screenshots: ${#APPS[@]} (processing up to $MAX_APPS)"
 
 # --- image hosting via a dedicated release ----------------------------------
 if ! gh release view "$RELEASE_TAG" -R "$REPO" >/dev/null 2>&1; then
@@ -63,24 +64,26 @@ count=0
 for app in "${APPS[@]}"; do
     count=$((count + 1))
     if [ "$count" -gt "$MAX_APPS" ]; then
-        echo "[$count/$MAX_APPS] reached max, stopping" | tee -a "$WORK_DIR/log.txt"
+        log "[$count/$MAX_APPS] reached max, stopping"
         break
     fi
-    echo "===== [$count/$MAX_APPS] $app =====" | tee -a "$WORK_DIR/log.txt"
+    log "===== [$count/$MAX_APPS] $app ====="
 
     # skip apps that already have an open screenshot-request issue
     open_issues=$(gh issue list -R "$REPO" --state open \
         --search "in:title \"Screenshot for $app\"" --json number -q 'length' 2>/dev/null || echo 0)
     if [ "${open_issues:-0}" -ge 1 ]; then
-        echo "skip: 'Screenshot for $app' issue already open" | tee -a "$WORK_DIR/log.txt"
+        log "SKIP: 'Screenshot for $app' issue already open"
         results+=("SKIP $app (issue already open)")
         continue
     fi
 
     # install via AppMan (local, no root)
+    log "installing $app via appman..."
     if ! timeout 900 env appman_location="$HOME/Applications" \
         appman -y -i --user "$app" >"$WORK_DIR/$app.install.log" 2>&1; then
-        echo "install failed ($(tail -n1 "$WORK_DIR/$app.install.log"))" | tee -a "$WORK_DIR/log.txt"
+        log "install failed - last lines from $app.install.log:"
+        tail -n 15 "$WORK_DIR/$app.install.log" | tee -a "$WORK_DIR/log.txt" >&2
         results+=("FAIL $app (install)")
         continue
     fi
@@ -96,10 +99,14 @@ for app in "${APPS[@]}"; do
         BIN=$(find "$HOME/Applications/$app" -maxdepth 1 -type f -perm -u+x 2>/dev/null | head -n1)
     fi
     if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
-        echo "could not locate executable after install" | tee -a "$WORK_DIR/log.txt"
+        log "could not locate executable after install
+  - ~/.local/bin/$app: $([ -e "$HOME/.local/bin/$app" ] && echo 'exists' || echo 'missing')"
+        log "  - contents of $HOME/Applications/$app:" 
+        ls -la "$HOME/Applications/$app" 2>/dev/null | tee -a "$WORK_DIR/log.txt" >&2 || true
         results+=("FAIL $app (no binary)")
         continue
     fi
+    log "BIN=$BIN"
 
     # --- launch & capture under Xvfb (plain `import`, no teasr needed) ----
 
@@ -130,9 +137,13 @@ for app in "${APPS[@]}"; do
         local main_wid
         main_wid=$(find_main_window)
         if [ -n "$main_wid" ]; then
-            xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || true
+            log "  window found: $main_wid"
+            xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || \
+                log "  windowsize rejected (fixed-size window)"
             sleep 1
             # capturing the window itself crops any blank space around it
+        else
+            log "  no window found on display, capturing full root"
         fi
 
         import -display "$DISPLAY" -window "${main_wid:-root}" \
@@ -183,29 +194,35 @@ for app in "${APPS[@]}"; do
     SHOT=$(capture_once "")
     if [ -z "$SHOT" ] || is_blank "$SHOT"; then
         if sandbox_hint; then
-            echo "sandbox error detected, retrying with --no-sandbox" | tee -a "$WORK_DIR/log.txt"
+            log "sandbox error detected, retrying with --no-sandbox"
             SHOT=$(capture_once "--no-sandbox")
         else
-            echo "no/blank capture, retrying" | tee -a "$WORK_DIR/log.txt"
+            log "no/blank capture, retrying"
             SHOT=$(capture_once "")
         fi
     fi
     if [ -z "$SHOT" ] || [ ! -s "$SHOT" ]; then
-        echo "capture failed ($(tail -n1 "$WORK_DIR/$app.launch.log"))" | tee -a "$WORK_DIR/log.txt"
+        log "capture failed - last lines from $app.launch.log:"
+        tail -n 15 "$WORK_DIR/$app.launch.log" | tee -a "$WORK_DIR/log.txt" >&2 || true
         results+=("FAIL $app (capture)")
         continue
     fi
     if is_blank "$SHOT"; then
-        echo "capture looks blank, skipping" | tee -a "$WORK_DIR/log.txt"
+        log "capture looks blank, skipping ($(identify -format '%k colors' "$SHOT" 2>/dev/null || echo '?') on $SHOT)"
         results+=("SKIP $app (blank capture)")
         continue
     fi
+    log "captured $SHOT ($(identify -format '%wx%h, %k colors' "$SHOT" 2>/dev/null || echo 'size?'))"
 
     # shrink for embedding in issues
-    convert "$SHOT" -resize '1280x800>' -strip "${SHOT}.small.png"
-    mv -f "${SHOT}.small.png" "$SHOT"
+    convert "$SHOT" -resize '1280x800>' -strip "${SHOT}.small.png" 2>&1 | tee -a "$WORK_DIR/log.txt" >&2 || true
+    mv -f "${SHOT}.small.png" "$SHOT" 2>/dev/null || true
 
-    gh release upload "$RELEASE_TAG" "$SHOT" -R "$REPO" --clobber >/dev/null 2>&1
+    if ! gh release upload "$RELEASE_TAG" "$SHOT" -R "$REPO" --clobber >/dev/null 2>&1; then
+        log "release upload failed for $SHOT"
+        results+=("FAIL $app (upload)")
+        continue
+    fi
     img_url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$(basename "$SHOT")"
 
     cat > "$WORK_DIR/$app.body.md" <<EOF
@@ -225,9 +242,15 @@ appman -i --user $app
 \`\`\`
 EOF
 
-    gh issue create -R "$REPO" --title "Screenshot for $app" --body-file "$WORK_DIR/$app.body.md" \
-        >> "$WORK_DIR/issues.log" 2>&1
-    results+=("OK $app")
+    if gh issue create -R "$REPO" --title "Screenshot for $app" \
+        --body-file "$WORK_DIR/$app.body.md" >"$WORK_DIR/$app.issue.log" 2>&1; then
+        result_line=$(tail -n1 "$WORK_DIR/$app.issue.log")
+        log "issue created: $result_line"
+        results+=("OK $app")
+    else
+        log "issue creation failed: $(tail -n3 "$WORK_DIR/$app.issue.log")"
+        results+=("FAIL $app (issue)")
+    fi
 done
 
 # --- run summary -------------------------------------------------------------
