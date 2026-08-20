@@ -45,7 +45,8 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
             xvfb x11-xserver-utils x11-utils xdotool imagemagick unzip p7zip-full \
             xz-utils binutils file curl wget jq libfuse2 dbus dbus-x11 \
-            fonts-dejavu-core openbox
+            fonts-dejavu-core openbox \
+            libegl1 libgl1 libgl1-mesa-dri mesa-utils libdbus-glib-1-2 zenity
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install AppMan (AM user-mode, no root)

@@ -126,7 +126,7 @@ for app in "${APPS[@]}"; do
         fi
         sleep 1
     }
-    capture_once() {  # $1 = extra flag (empty or --no-sandbox)
+    capture_once() {  # $1 = extra args for the app
         rm -rf "$WORK_DIR/out"
         mkdir -p "$WORK_DIR/out"
         launch_app "${1:-}"
@@ -144,10 +144,17 @@ for app in "${APPS[@]}"; do
             # capturing the window itself crops any blank space around it
         else
             log "  no window found on display, capturing full root"
+            xwininfo -root -tree 2>/dev/null | tail -n 15 > "$WORK_DIR/$app.tree.log" || true
         fi
 
+        # window-targeted capture; fall back to root if it yields nothing
         import -display "$DISPLAY" -window "${main_wid:-root}" \
-            "$WORK_DIR/out/$app.png" 2>/dev/null || true
+            "$WORK_DIR/out/$app.png" >"$WORK_DIR/$app.import.log" 2>&1 || true
+        if [ ! -s "$WORK_DIR/out/$app.png" ]; then
+            log "  window capture empty, falling back to root"
+            import -display "$DISPLAY" -window root \
+                "$WORK_DIR/out/$app.png" >>"$WORK_DIR/$app.import.log" 2>&1 || true
+        fi
         stop_apps
         if [ -s "$WORK_DIR/out/$app.png" ]; then
             printf '%s' "$WORK_DIR/out/$app.png"
@@ -189,6 +196,13 @@ for app in "${APPS[@]}"; do
         grep -qi -E 'no-sandbox|suid sandbox|failed to create sandbox|sandbox helper' \
             "$WORK_DIR/$app.launch.log" 2>/dev/null || return 1
     }
+    # headless Xvfb has no GPU: Chromium/Electron often abort with GPU
+    # process failures -- needs --disable-gpu (and --no-sandbox too, same
+    # stderr-asking-for-it rationale as above)
+    gpu_hint() {
+        grep -qi -E 'gpu process|gpu.*(fail|usable|crash)|vulkan|egl' \
+            "$WORK_DIR/$app.launch.log" 2>/dev/null || return 1
+    }
 
     # first try without any flags
     SHOT=$(capture_once "")
@@ -196,6 +210,9 @@ for app in "${APPS[@]}"; do
         if sandbox_hint; then
             log "sandbox error detected, retrying with --no-sandbox"
             SHOT=$(capture_once "--no-sandbox")
+        elif gpu_hint; then
+            log "GPU error detected, retrying with --no-sandbox --disable-gpu"
+            SHOT=$(capture_once "--no-sandbox --disable-gpu")
         else
             log "no/blank capture, retrying"
             SHOT=$(capture_once "")
@@ -204,6 +221,14 @@ for app in "${APPS[@]}"; do
     if [ -z "$SHOT" ] || [ ! -s "$SHOT" ]; then
         log "capture failed - last lines from $app.launch.log:"
         tail -n 15 "$WORK_DIR/$app.launch.log" | tee -a "$WORK_DIR/log.txt" >&2 || true
+        if [ -s "$WORK_DIR/$app.import.log" ]; then
+            log "import errors from $app.import.log:"
+            tail -n 5 "$WORK_DIR/$app.import.log" | tee -a "$WORK_DIR/log.txt" >&2 || true
+        fi
+        if [ -s "$WORK_DIR/$app.tree.log" ]; then
+            log "window tree when no window found:"
+            cat "$WORK_DIR/$app.tree.log" | tee -a "$WORK_DIR/log.txt" >&2 || true
+        fi
         results+=("FAIL $app (capture)")
         continue
     fi
