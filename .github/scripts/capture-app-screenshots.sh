@@ -94,7 +94,12 @@ for app in "${APPS[@]}"; do
         continue
     fi
 
-    # capture with teasr (screen mode, window chrome, full display)
+    # capture with teasr (screen mode, window chrome).
+    # window = "$app" crops to the app's own window instead of the full
+    # 1280x800 display, which is what was causing the empty space around
+    # the app content. teasr matches window titles case-insensitively by
+    # substring, so this works whenever the window title contains the app
+    # id; if it doesn't, write_config_fullscreen below is the fallback.
     write_config() {
         cat > "$WORK_DIR/$app.toml" <<EOF
 [output]
@@ -104,6 +109,27 @@ formats = [{ output_type = "png" }]
 [[scenes]]
 type = "screen"
 name = "$app"
+title = "$app"
+window = "$app"
+setup = "$1"
+delay = $((DELAY * 1000))
+
+[[scenes.interactions]]
+type = "snapshot"
+EOF
+    }
+    # Fallback used only if window-targeted capture never finds a match:
+    # same as before, full display, at least gets *a* screenshot.
+    write_config_fullscreen() {
+        cat > "$WORK_DIR/$app.toml" <<EOF
+[output]
+dir = "$WORK_DIR/out"
+formats = [{ output_type = "png" }]
+
+[[scenes]]
+type = "screen"
+name = "$app"
+title = "$app"
 setup = "$1"
 delay = $((DELAY * 1000))
 
@@ -116,9 +142,9 @@ EOF
             --scene-timeout 90 >"$WORK_DIR/$app.capture.log" 2>&1
     }
     shot_path() {
-        local p="$WORK_DIR/out/$app.png"
-        [ -f "$p" ] || p=$(ls "$WORK_DIR"/out/"$app"*.png 2>/dev/null | head -n1)
-        printf '%s' "${p:-}"
+        # out/ is wiped right before every capture attempt (see below), so
+        # anything here belongs to *this* app/attempt -- no name matching needed.
+        ls -t "$WORK_DIR"/out/*.png 2>/dev/null | head -n1
     }
     is_blank() {
         if command -v identify >/dev/null 2>&1; then
@@ -131,6 +157,7 @@ EOF
     }
 
     SHOT=""
+    rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
     write_config "nohup dbus-run-session -- $BIN >/dev/null 2>&1 &"
     if run_teasr; then
         SHOT=$(shot_path)
@@ -138,8 +165,19 @@ EOF
     if [ -z "$SHOT" ] || [ ! -s "$SHOT" ] || is_blank "$SHOT"; then
         # many Electron/Chromium apps refuse to run without --no-sandbox
         echo "no/blank capture, retrying with --no-sandbox" | tee -a "$WORK_DIR/log.txt"
-        [ -n "$SHOT" ] && rm -f "$SHOT"
+        rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
         write_config "nohup dbus-run-session -- $BIN --no-sandbox >/dev/null 2>&1 &"
+        if run_teasr; then
+            SHOT=$(shot_path)
+        fi
+    fi
+    if [ -z "$SHOT" ] || [ ! -s "$SHOT" ] || is_blank "$SHOT"; then
+        # window title didn't match "$app" (common for apps whose window
+        # title differs from the AM app id) -- fall back to full display
+        # rather than failing the app outright.
+        echo "no window match, falling back to full-display capture" | tee -a "$WORK_DIR/log.txt"
+        rm -rf "$WORK_DIR/out"; mkdir -p "$WORK_DIR/out"
+        write_config_fullscreen "nohup dbus-run-session -- $BIN --no-sandbox >/dev/null 2>&1 &"
         if run_teasr; then
             SHOT=$(shot_path)
         fi
