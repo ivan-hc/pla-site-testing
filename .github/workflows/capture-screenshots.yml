@@ -12,7 +12,7 @@ on:
         description: Seconds to wait for each app window to open
         required: false
         type: number
-        default: 8
+        default: 20
       shuffle:
         description: Randomize which apps are picked first
         required: false

@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 MAX_APPS="${MAX_APPS:-10}"
-DELAY="${DELAY:-8}"
+DELAY="${DELAY:-20}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${RUNNER_TEMP:-/tmp}/app-capture"
 RELEASE_TAG="screenshots-captured"
@@ -136,9 +136,15 @@ for app in "${APPS[@]}"; do
         LAUNCH_PGID=$!
     }
     stop_apps() {
-        local pid
+        local pid child
         pid=$(cat "$WORK_DIR/$app.pid" 2>/dev/null || true)
         if [ -n "${pid:-}" ]; then
+            # TERM the app itself first; killing the whole group at once also
+            # takes out dbus-run-session, which makes Chromium/Electron report
+            # "D-Bus connection was disconnected" FATAL spam in the launch log
+            child=$(pgrep -P "$pid" 2>/dev/null | tail -n1 || true)
+            [ -n "${child:-}" ] && kill "$child" 2>/dev/null || true
+            sleep 1
             # setsid gives the app its own process group: kill the whole tree
             kill -- -"$pid" 2>/dev/null || true
             sleep 1
@@ -343,16 +349,16 @@ EOF
         else
             printf '![screenshot of %s](%s)\n\n' "$app" "$img_url"
         fi
-        cat <<EOF
+        cat <<'EOF'
 **Checklist**
 - [ ] review the screenshot(s) above
-- [ ] add the best one to the _SCREENSHOTS_ line in [apps/\$app](../../blob/main/apps/\$app)
+- [ ] add the best one to the _SCREENSHOTS_ line for this app in the catalog
 - [ ] close this issue when done
 
 _Reproduction (AppImage/AppMan):_
-\`\`\`
-appman -i --user \$app
-\`\`\`
+```
+appman -i --user <app>
+```
 EOF
     } > "$WORK_DIR/$app.body.md"
 

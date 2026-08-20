@@ -28,35 +28,87 @@ site=$(curl -fsSL --max-time 30 -A "$UA" "$AM_URL" 2>/dev/null \
 [ -n "${site:-}" ] || { echo "no SITE found for $APP" >&2; exit 1; }
 echo "SITE: $site" >&2
 
+# Build repos (pkgforge-dev/*-AppImage, Samueru-sama/*-AppImage, ...) just
+# package an app; their README image is only the packaging logo, while the
+# project's own screenshots live in the UPSTREAM repo they point at. Their
+# readmes use a uniform table:
+#   | Latest Stable Release | Upstream URL |
+#   | :---: | :---: |
+#   | [Click here](https://github.com/pkgforge-dev/x/releases/latest) | [Click here](https://github.com/user/theapp) |
+# The upstream link is the last one on the data row below the header.
+upstream_from_readme() {
+    local doc="$1" in_table="" upstream=""
+    while IFS= read -r line; do
+        if printf '%s' "$line" | grep -q 'Upstream URL'; then
+            in_table=1
+            continue
+        fi
+        if [ -n "$in_table" ]; then
+            # skip markdown table separator rows
+            printf '%s' "$line" | grep -q ':---:' && continue
+            printf '%s' "$line" | grep -qE '[^]]*\]\(https?://' || continue
+            upstream=$(printf '%s' "$line" | grep -oE '\[[^]]*\]\(https?://[^)]+\)' \
+                | grep -oE 'https?://[^)]+' | tail -n1 || true)
+            [ -n "$upstream" ] && break
+        fi
+    done <<<"$doc"
+    printf '%s' "$upstream"
+}
+
 candidates=()
-if [[ "$site" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
-    # github repo: scrape the README
-    owner=${site%/*}
-    repo=${site#*/}
-    for readme in README.md readme.md README.MD Readme.md readme.MD; do
-        doc=$(curl -fsSL --max-time 30 "https://raw.githubusercontent.com/$owner/$repo/HEAD/$readme" 2>/dev/null) \
-            && break
-    done
-    [ -n "${doc:-}" ] || { echo "no README for $site" >&2; exit 1; }
-    # markdown images: ![alt](url)
-    mapfile -t cands < <(printf '%s' "$doc" | grep -oE '!\[[^]]*\]\([^)]+\)' \
-        | sed -E 's/^!\[[^]]*\]\(//; s/\)$//' || true)
-    # html images: <img src="...">
-    mapfile -t cands_html < <(printf '%s' "$doc" | grep -oE '<img[^>]+>' \
-        | grep -oE 'src="[^"]+"' | sed -E 's/^src="//; s/"$//' || true)
-    candidates=("${cands[@]}" "${cands_html[@]}")
-    base="https://raw.githubusercontent.com/$owner/$repo/HEAD"
-else
-    # website: og:image + img tags from the homepage
-    page=$(curl -fsSL --max-time 30 -A "$UA" "$site" 2>/dev/null) \
-        || { echo "cannot fetch $site" >&2; exit 1; }
-    mapfile -t cands_og < <(printf '%s' "$page" | grep -oiE '<meta[^>]+og:image[^>]*>' \
-        | grep -oiE '(content|value)="[^"]+"' | sed -E 's/^[^=]+="//; s/"$//' || true)
-    mapfile -t cands_img < <(printf '%s' "$page" | grep -oiE '<img[^>]+>' \
-        | grep -oiE 'src="[^"]+"' | sed -E 's/^src="//; s/"$//' || true)
-    candidates=("${cands_og[@]}" "${cands_img[@]}")
-    base="$site"
-fi
+base=""
+hop=0
+while [ "$hop" -lt 5 ]; do
+    hop=$((hop + 1))
+    if [[ "$site" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+        # github repo: scrape the README
+        owner=${site%/*}
+        repo=${site#*/}
+        for readme in README.md readme.md README.MD Readme.md readme.MD README; do
+            doc=$(curl -fsSL --max-time 30 "https://raw.githubusercontent.com/$owner/$repo/HEAD/$readme" 2>/dev/null) \
+                && break
+        done
+        if [ -z "${doc:-}" ]; then
+            echo "no README for $site" >&2
+            exit 1
+        fi
+        # repo name ends in -appimage: it's a build repo, resolve the
+        # upstream project and use its images instead of the packaging logo
+        upstream=""
+        if [[ "$repo" =~ -[Aa]pp[Ii]mage$ ]]; then
+            upstream=$(upstream_from_readme "$doc")
+        fi
+        if [ -n "$upstream" ]; then
+            if [[ "$upstream" =~ ^https?://github\.com/([^/]+)/([^/#?]+) ]]; then
+                site="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+            else
+                site="$upstream"
+            fi
+            echo "build repo $owner/$repo -> upstream $site" >&2
+            continue
+        fi
+        # markdown images: ![alt](url)
+        mapfile -t cands < <(printf '%s' "$doc" | grep -oE '!\[[^]]*\]\([^)]+\)' \
+            | sed -E 's/^!\[[^]]*\]\(//; s/\)$//' || true)
+        # html images: <img src="...">
+        mapfile -t cands_html < <(printf '%s' "$doc" | grep -oE '<img[^>]+>' \
+            | grep -oE 'src="[^"]+"' | sed -E 's/^src="//; s/"$//' || true)
+        candidates=("${cands[@]}" "${cands_html[@]}")
+        base="https://raw.githubusercontent.com/$owner/$repo/HEAD"
+        break
+    else
+        # website: og:image + img tags from the homepage
+        page=$(curl -fsSL --max-time 30 -A "$UA" "$site" 2>/dev/null) \
+            || { echo "cannot fetch $site" >&2; exit 1; }
+        mapfile -t cands_og < <(printf '%s' "$page" | grep -oiE '<meta[^>]+og:image[^>]*>' \
+            | grep -oiE '(content|value)="[^"]+"' | sed -E 's/^[^=]+="//; s/"$//' || true)
+        mapfile -t cands_img < <(printf '%s' "$page" | grep -oiE '<img[^>]+>' \
+            | grep -oiE 'src="[^"]+"' | sed -E 's/^src="//; s/"$//' || true)
+        candidates=("${cands_og[@]}" "${cands_img[@]}")
+        base="$site"
+        break
+    fi
+done
 
 [ "${#candidates[@]}" -gt 0 ] || { echo "no images found in $site" >&2; exit 1; }
 
