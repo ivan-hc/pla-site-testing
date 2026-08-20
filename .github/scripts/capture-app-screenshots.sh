@@ -499,18 +499,12 @@ the catalog? Let me know if you'd like it removed or replaced.
 
 EOF
         fi
-        cat <<EOF
+        cat <<'EOF'
 **Checklist**
 - [ ] review the screenshot(s) above
 - [ ] add the best one to the _SCREENSHOTS_ line for this app in the catalog
 - [ ] close this issue when done
 
-_Reproduction (AM/AppMan):_
-```sh
-appman -i $app
-# or
-am -i $app
-```
 EOF
     } > "$WORK_DIR/$app.body.md"
 
