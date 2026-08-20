@@ -61,6 +61,7 @@ fi
 sleep 1
 
 count=0
+LAUNCH_PGID=0
 for app in "${APPS[@]}"; do
     count=$((count + 1))
     if [ "$count" -gt "$MAX_APPS" ]; then
@@ -111,8 +112,12 @@ for app in "${APPS[@]}"; do
     # --- launch & capture under Xvfb (plain `import`, no teasr needed) ----
 
     launch_app() {
+        # some apps refuse to start when their config dir is missing (e.g.
+        # deskthing cannot create ~/.config/<app>/logs); make it exist first
+        mkdir -p "$HOME/.config/$app" 2>/dev/null || true
         setsid nohup dbus-run-session -- "$BIN" ${1:-} >"$WORK_DIR/$app.launch.log" 2>&1 &
         echo $! > "$WORK_DIR/$app.pid"
+        LAUNCH_PGID=$!
     }
     stop_apps() {
         local pid
@@ -124,6 +129,19 @@ for app in "${APPS[@]}"; do
             kill -9 -- -"$pid" 2>/dev/null || true
             rm -f "$WORK_DIR/$app.pid"
         fi
+        # kill any orphaned X clients left behind by a hardened app (they
+        # daemonize out of our process group, keep their windows mapped, and
+        # then get mistaken for the *next* app's window)
+        local wid wpid
+        while read -r wid size rest; do
+            wpid=$(xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
+            [ -n "${wpid:-}" ] || continue
+            if [ "${wpid:-0}" -ne "${LAUNCH_PGID:-0}" ] && kill -0 "$wpid" 2>/dev/null; then
+                kill -9 "$wpid" 2>/dev/null || true
+            fi
+        done < <(xwininfo -root -children 2>/dev/null \
+            | grep -E '^     0x[0-9a-f]+ ' \
+            | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+\+/) { print $1, $i; break } }')
         sleep 1
     }
     capture_once() {  # $1 = extra args for the app
@@ -162,12 +180,23 @@ for app in "${APPS[@]}"; do
     }
 
     find_main_window() {
-        local wid size w h area best bestarea
+        # finds the largest *viewable* top-level window belonging to the
+        # current app (via _NET_WM_PID inside this run's process group);
+        # this avoids picking stale windows that survived a crashed app.
+        local wid size w h area best bestarea wpid pgid
         best=""; bestarea=0
         while read -r wid size rest; do
             w=${size%x*}; h=${size#*x}
             [ -n "${w:-}" ] && [ -n "${h:-}" ] || continue
             area=$((w * h))
+            # must be mapped+viewable: xwininfo -children lists windows that
+            # are not currently viewable too, and import fails on those
+            xwininfo -id "$wid" 2>/dev/null | grep -q 'Map State: IsViewable' || continue
+            # must belong to a process in this app's process group
+            wpid=$(xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
+            [ -n "${wpid:-}" ] || continue
+            pgid=$(ps -o pgid= -p "$wpid" 2>/dev/null | tr -d ' ')
+            [ "$pgid" = "$LAUNCH_PGID" ] || continue
             if [ "$area" -gt "$bestarea" ]; then
                 bestarea=$area
                 best=$wid
