@@ -200,7 +200,7 @@ for app in "${APPS[@]}"; do
     # process failures -- needs --disable-gpu (and --no-sandbox too, same
     # stderr-asking-for-it rationale as above)
     gpu_hint() {
-        grep -qi -E 'gpu process|gpu.*(fail|usable|crash)|vulkan|egl' \
+        grep -qi -E 'gpu process|gpu.*(fail|usable|crash)|vk[A-Z][a-z]+\(|vulkan|dri3|libOpenGL|libEGL' \
             "$WORK_DIR/$app.launch.log" 2>/dev/null || return 1
     }
 
