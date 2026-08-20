@@ -53,7 +53,10 @@ export ALSOFT_DRIVERS=${ALSOFT_DRIVERS:-null}
 export DISPLAY="${DISPLAY:-:99}"
 
 results=()
-log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$WORK_DIR/log.txt"; }
+# log lines go to stderr, not stdout: capture_once is called via
+# SHOT=$(capture_once ""), and any stdout from log() inside it would be
+# captured into $SHOT, turning a captured png path into log noise.
+log() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$WORK_DIR/log.txt" >&2; }
 cleanup() {
     [ -n "${WM_PID:-}" ] && kill "$WM_PID" 2>/dev/null || true
     [ -n "${XVFB_PID:-}" ] && kill "$XVFB_PID" 2>/dev/null || true
@@ -228,9 +231,13 @@ for app in "${APPS[@]}"; do
         # xwd reads the X server raw XGetImage (no MIT-SHM), which import's
         # XShmGetImage path can fail with "Resource temporarily unavailable"
         # on CI runners for all windows, root included; on hosts with both,
-        # try xwd first and keep import as a backup.
+        # try xwd first and keep import as a backup. xwd's -id only takes a
+        # numeric window id, so resolve the root window's id numerically.
+        ROOT_WID=$(timeout 5 xwininfo -display "$DISPLAY" -root 2>/dev/null \
+            | awk '/Window id:/{print $4; exit}')
         captured=""
-        for target in "${main_wid:-root}" root; do
+        for target in "${main_wid:-}" "$ROOT_WID"; do
+            [ -n "$target" ] || continue
             [ -z "$captured" ] || break
             if command -v xwd >/dev/null 2>&1; then
                 timeout 20 xwd -display "$DISPLAY" -silent -id "$target" \
