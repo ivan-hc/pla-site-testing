@@ -26,6 +26,8 @@ export ELECTRON_DISABLE_SANDBOX=1
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
+# no sound hardware in CI: SDL apps (games etc.) abort at startup otherwise
+export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
 export DISPLAY="${DISPLAY:-:99}"
 
 results=()
@@ -109,6 +111,20 @@ for app in "${APPS[@]}"; do
     fi
     log "BIN=$BIN"
 
+    # --- site image from the app's own website/repo (independent of capture) --
+    SITE_IMG=""
+    if SITE_IMG=$(timeout 80 bash "$SCRIPT_DIR/fetch-site-image.sh" "$app" "$WORK_DIR" \
+        2>"$WORK_DIR/$app.site.log"); then
+        if [ -s "$SITE_IMG" ]; then
+            log "site image: $SITE_IMG ($(identify -format '%wx%h' "$SITE_IMG" 2>/dev/null || echo '?'))"
+        else
+            SITE_IMG=""
+        fi
+    else
+        SITE_IMG=""
+        log "no site image ($(tail -n1 "$WORK_DIR/$app.site.log" 2>/dev/null || echo '?') )"
+    fi
+
     # --- launch & capture under Xvfb (plain `import`, no teasr needed) ----
 
     launch_app() {
@@ -180,11 +196,15 @@ for app in "${APPS[@]}"; do
     }
 
     find_main_window() {
-        # finds the largest *viewable* top-level window belonging to the
-        # current app (via _NET_WM_PID inside this run's process group);
-        # this avoids picking stale windows that survived a crashed app.
-        local wid size w h area best bestarea wpid pgid
+        # largest *viewable* top-level window; prefers one owned by this
+        # app's process group (if discoverable) but falls back to any
+        # viewable window -- strict PID filtering rejects real apps (Qt
+        # helper processes, python wrappers, zenity dialogs) without
+        # _NET_WM_PID or running in a different process group. Stale
+        # windows are instead killed between apps in stop_apps.
+        local wid size w h area best bestarea fallback fallarea wpid pgid
         best=""; bestarea=0
+        fallback=""; fallarea=0
         while read -r wid size rest; do
             w=${size%x*}; h=${size#*x}
             [ -n "${w:-}" ] && [ -n "${h:-}" ] || continue
@@ -192,7 +212,12 @@ for app in "${APPS[@]}"; do
             # must be mapped+viewable: xwininfo -children lists windows that
             # are not currently viewable too, and import fails on those
             xwininfo -id "$wid" 2>/dev/null | grep -q 'Map State: IsViewable' || continue
-            # must belong to a process in this app's process group
+            # remember any viewable window as fallback
+            if [ "$area" -gt "$fallarea" ]; then
+                fallarea=$area
+                fallback=$wid
+            fi
+            # tightly-scoped preference: window owned by this app's pgid
             wpid=$(xprop -id "$wid" _NET_WM_PID 2>/dev/null | grep -oE '[0-9]+$')
             [ -n "${wpid:-}" ] || continue
             pgid=$(ps -o pgid= -p "$wpid" 2>/dev/null | tr -d ' ')
@@ -204,7 +229,7 @@ for app in "${APPS[@]}"; do
         done < <(xwininfo -root -children 2>/dev/null \
             | grep -E '^     0x[0-9a-f]+ ' \
             | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+\+/) { print $1, $i; break } }')
-        printf '%s' "$best"
+        printf '%s' "${best:-$fallback}"
     }
 
     is_blank() {
@@ -234,6 +259,9 @@ for app in "${APPS[@]}"; do
     }
 
     # first try without any flags
+    SHOT=""
+    SHOT_A=""
+    site_url=""
     SHOT=$(capture_once "")
     if [ -z "$SHOT" ] || is_blank "$SHOT"; then
         if sandbox_hint; then
@@ -258,43 +286,75 @@ for app in "${APPS[@]}"; do
             log "window tree when no window found:"
             cat "$WORK_DIR/$app.tree.log" | tee -a "$WORK_DIR/log.txt" >&2 || true
         fi
-        results+=("FAIL $app (capture)")
-        continue
-    fi
-    if is_blank "$SHOT"; then
+        if [ -n "$SITE_IMG" ]; then
+            log "capture failed, falling back to site image only"
+            SHOT_A="$SITE_IMG"
+            SITE_IMG=""
+        else
+            results+=("FAIL $app (capture)")
+            continue
+        fi
+    elif is_blank "$SHOT"; then
         log "capture looks blank, skipping ($(identify -format '%k colors' "$SHOT" 2>/dev/null || echo '?') on $SHOT)"
-        results+=("SKIP $app (blank capture)")
-        continue
+        if [ -n "$SITE_IMG" ]; then
+            log "blank capture, falling back to site image only"
+            SHOT_A="$SITE_IMG"
+            SITE_IMG=""
+        else
+            results+=("SKIP $app (blank capture)")
+            continue
+        fi
+    else
+        SHOT_A="$SHOT"
     fi
-    log "captured $SHOT ($(identify -format '%wx%h, %k colors' "$SHOT" 2>/dev/null || echo 'size?'))"
+    log "captured $SHOT_A ($(identify -format '%wx%h, %k colors' "$SHOT_A" 2>/dev/null || echo 'size?'))"
 
-    # shrink for embedding in issues
-    convert "$SHOT" -resize '1280x800>' -strip "${SHOT}.small.png" 2>&1 | tee -a "$WORK_DIR/log.txt" >&2 || true
-    mv -f "${SHOT}.small.png" "$SHOT" 2>/dev/null || true
+    # shrink for embedding in issues (only for real captures)
+    if [ "$SHOT_A" = "$SHOT" ]; then
+        convert "$SHOT_A" -resize '1280x800>' -strip "${SHOT_A}.small.png" 2>&1 | tee -a "$WORK_DIR/log.txt" >&2 || true
+        mv -f "${SHOT_A}.small.png" "$SHOT_A" 2>/dev/null || true
+    fi
 
-    if ! gh release upload "$RELEASE_TAG" "$SHOT" -R "$REPO" --clobber >/dev/null 2>&1; then
-        log "release upload failed for $SHOT"
+    if ! gh release upload "$RELEASE_TAG" "$SHOT_A" -R "$REPO" --clobber >/dev/null 2>&1; then
+        log "release upload failed for $SHOT_A"
         results+=("FAIL $app (upload)")
         continue
     fi
-    img_url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$(basename "$SHOT")"
+    img_url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$(basename "$SHOT_A")"
 
-    cat > "$WORK_DIR/$app.body.md" <<EOF
-This issue was opened automatically after capturing a screenshot of **$app** running
-under a virtual display in CI.
+    if [ -n "$SITE_IMG" ]; then
+        if ! gh release upload "$RELEASE_TAG" "$SITE_IMG" -R "$REPO" --clobber >/dev/null 2>&1; then
+            log "release upload failed for site image $SITE_IMG"
+        else
+            site_url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$(basename "$SITE_IMG")"
+        fi
+    fi
 
-![screenshot of $app]($img_url)
+    # build the issue body; embed whatever images we have
+    {
+        cat <<EOF
+This issue was opened automatically for **$app**, which is missing a screenshot
+in the catalog.
 
+EOF
+        if [ -n "$SITE_IMG" ] && [ -n "$site_url" ]; then
+            printf '![captured screenshot of %s](%s)\n\n![site image of %s](%s)\n\n' \
+                "$app" "$img_url" "$app" "$site_url"
+        else
+            printf '![screenshot of %s](%s)\n\n' "$app" "$img_url"
+        fi
+        cat <<EOF
 **Checklist**
-- [ ] review the screenshot above
-- [ ] add it to the _SCREENSHOTS_ line in [apps/$app](../../blob/main/apps/$app)
+- [ ] review the screenshot(s) above
+- [ ] add the best one to the _SCREENSHOTS_ line in [apps/\$app](../../blob/main/apps/\$app)
 - [ ] close this issue when done
 
 _Reproduction (AppImage/AppMan):_
 \`\`\`
-appman -i --user $app
+appman -i --user \$app
 \`\`\`
 EOF
+    } > "$WORK_DIR/$app.body.md"
 
     if gh issue create -R "$REPO" --title "Screenshot for $app" \
         --body-file "$WORK_DIR/$app.body.md" >"$WORK_DIR/$app.issue.log" 2>&1; then
