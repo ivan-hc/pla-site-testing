@@ -120,23 +120,18 @@ header_value() {
 }
 
 is_image_body() {
-    local f="$1" magic
-    magic=$(head -c 12 "$f" | od -An -tx1 | tr -d ' \n')
-    case "$magic" in
-        89504e470d0a1a0a*) return 0 ;;  # PNG
-        ffd8ff*) return 0 ;;            # JPEG
-        4749463837a1*|4749463839a1*) return 0 ;; # GIF87a/89a (ascii 'a' = 0x61, fix below)
-    esac
-    # GIF/WEBP checks via ascii (simpler, avoids od encoding mistakes above)
-    local head6 head4 head8_12
-    head6=$(head -c 6 "$f")
-    [ "$head6" = "GIF87a" ] && return 0
-    [ "$head6" = "GIF89a" ] && return 0
+    local f="$1" head3 head4 head8_12
+    head3=$(head -c 3 "$f")
+    [ "$head3" = $'\xff\xd8\xff' ] && return 0  # JPEG
     head4=$(head -c 4 "$f")
-    if [ "$head4" = "RIFF" ]; then
-        head8_12=$(dd if="$f" bs=1 skip=8 count=4 2>/dev/null)
-        [ "$head8_12" = "WEBP" ] && return 0
-    fi
+    case "$head4" in
+        $'\x89PNG') return 0 ;;  # PNG
+        GIF8) return 0 ;;        # covers GIF87a/GIF89a
+        RIFF)
+            head8_12=$(dd if="$f" bs=1 skip=8 count=4 2>/dev/null)
+            [ "$head8_12" = "WEBP" ] && return 0
+            ;;
+    esac
     return 1
 }
 
@@ -161,7 +156,8 @@ process_url() {
     key=$(stable_key "$url")
     dl_file="$DL_DIR/${key}.$(ext_for "$url")"
     webp_file="$WEBP_DIR/${key}.webp"
-    entry=$(jq -c --arg u "$url" '.[$u] // empty' "$MANIFEST_SNAPSHOT")
+    entry=""
+    [ -f "$MANIFEST_LOOKUP_DIR/$key.json" ] && entry=$(cat "$MANIFEST_LOOKUP_DIR/$key.json")
     has_webp=0
     [ -f "$webp_file" ] && has_webp=1
 
@@ -252,28 +248,58 @@ process_url() {
     echo "$key" > "$RESULTS_DIR/$key.ok"
 }
 export -f process_url fetch header_value is_image_body convert_to_webp stable_key ext_for
-export MAGICK QUALITY MAX_BYTES USER_AGENT DL_DIR WEBP_DIR RESULTS_DIR MANIFEST_SNAPSHOT
+export MAGICK QUALITY MAX_BYTES USER_AGENT DL_DIR WEBP_DIR RESULTS_DIR MANIFEST_LOOKUP_DIR
 
-replace_in_file() {
-    # replace_in_file <path> <rel_prefix> <mapping_file: url<TAB>key>
-    local path="$1" rel_prefix="$2" mapping_file="$3" count=0 url key n
-    [ -s "$mapping_file" ] || return 0
-    content=$(cat "$path" 2>/dev/null) || return 0
-    changed=0
-    while IFS=$'\t' read -r url key; do
-        [ -z "$url" ] && continue
-        n=$(grep -o -F "$url" <<<"$content" | wc -l)
-        if [ "$n" -gt 0 ]; then
-            content="${content//$url/${rel_prefix}screenshots/${key}.webp}"
-            count=$((count + n))
-            changed=1
-        fi
-    done < "$mapping_file"
-    if [ "$changed" = 1 ]; then
-        printf '%s' "$content" > "$path.tmp"
-        mv "$path.tmp" "$path"
-    fi
-    echo "$count"
+replace_all() {
+    # replace_all <site_dir> <mapping_file: url<TAB>key>
+    # One pass over every .json/.html file doing all literal URL->webp
+    # substitutions. This is the one place we reach for python3: bash's
+    # ${content//pat/rep} rescans the whole string per replacement and is
+    # not viable at file x url scale (this was ~35 of the 45 minutes).
+    # Deps otherwise stay pure bash/curl/jq/imagemagick; if you'd rather
+    # not depend on python3 here, ask and I'll swap in an escaped `sed -f`
+    # version instead (slower, but zero new deps).
+    python3 - "$1" "$2" <<'PYEOF'
+import sys, os
+
+site_dir, mapping_file = sys.argv[1], sys.argv[2]
+mapping = {}
+with open(mapping_file, "r", encoding="utf-8") as fh:
+    for line in fh:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        url, key = line.split("\t", 1)
+        mapping[url] = key
+
+total = 0
+for root, dirs, files in os.walk(site_dir):
+    dirs[:] = [d for d in dirs if d != ".cache"]
+    for fname in files:
+        if not fname.endswith((".json", ".html")):
+            continue
+        path = os.path.join(root, fname)
+        rel = os.path.relpath(path, site_dir)
+        rel_prefix = "../" * rel.count(os.sep)
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                content = fh.read()
+        except OSError:
+            continue
+        count = 0
+        for url, key in mapping.items():
+            n = content.count(url)
+            if n:
+                content = content.replace(url, f"{rel_prefix}screenshots/{key}.webp")
+                count += n
+        if count:
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            os.replace(tmp, path)
+            total += count
+print(total)
+PYEOF
 }
 
 main() {
@@ -289,9 +315,18 @@ main() {
 
     mkdir -p "$CACHE_DIR"
     [ -f "$MANIFEST" ] || echo '{}' > "$MANIFEST"
-    MANIFEST_SNAPSHOT=$(mktemp)
-    jq -c '.' "$MANIFEST" > "$MANIFEST_SNAPSHOT" 2>/dev/null || echo '{}' > "$MANIFEST_SNAPSHOT"
-    export MANIFEST_SNAPSHOT
+
+    # Pre-split the manifest into one small file per url-hash so process_url
+    # does an O(1) read instead of re-parsing the whole manifest per url
+    # (this was the other big chunk of the 45 minutes on a manifest that's
+    # accumulated a lot of entries over time).
+    MANIFEST_LOOKUP_DIR=$(mktemp -d)
+    export MANIFEST_LOOKUP_DIR
+    jq -c 'to_entries[]' "$MANIFEST" 2>/dev/null | while IFS= read -r line; do
+        u=$(printf '%s' "$line" | jq -r '.key')
+        k=$(stable_key "$u")
+        printf '%s' "$line" | jq -c '.value' > "$MANIFEST_LOOKUP_DIR/$k.json"
+    done
 
     RESULTS_DIR=$(mktemp -d)
     mkdir -p "$RESULTS_DIR/stats"
@@ -300,21 +335,23 @@ main() {
     xargs -a "$urls_file" -d '\n' -P "$MAX_WORKERS" -I{} bash -c 'process_url "$@"' _ {}
 
     # Build key->result and url->key mapping, tally stats
-    local mapping_file results_json
+    local mapping_file results_ndjson results_json
     mapping_file=$(mktemp)
-    results_json=$(mktemp)
-    echo '{}' > "$results_json"
+    results_ndjson=$(mktemp)
     while IFS= read -r url; do
         key=$(stable_key "$url")
         if [ -f "$RESULTS_DIR/$key.result" ]; then
             printf '%s\t%s\n' "$url" "$key" >> "$mapping_file"
-            jq -c --arg u "$url" --arg k "$key" --slurpfile r "$RESULTS_DIR/$key.result" \
-                '. + {($u): $r[0]}' "$results_json" > "$results_json.tmp" && mv "$results_json.tmp" "$results_json"
+            jq -c -n --arg u "$url" --slurpfile r "$RESULTS_DIR/$key.result" \
+                '{($u): $r[0]}' >> "$results_ndjson"
             if [ -f "$RESULTS_DIR/$key.ok" ]; then
                 printf '%s\n' "$key" >> "$RESULTS_DIR/ok_keys"
             fi
         fi
     done < "$urls_file"
+    results_json=$(mktemp)
+    jq -s 'add // {}' "$results_ndjson" > "$results_json"
+    rm -f "$results_ndjson"
 
     local downloaded converted unchanged missing failed changed
     downloaded=$(find "$RESULTS_DIR/stats" -name 'downloaded.*' 2>/dev/null | wc -l)
@@ -345,24 +382,16 @@ main() {
         done
     fi
 
-    local replaced_total=0 n
-    while IFS= read -r -d '' f; do
-        rel="${f#"$SITE_DIR"/}"
-        case "$rel" in
-            .cache/*|*/.cache/*) continue ;;
-        esac
-        depth=$(tr -dc '/' <<<"$rel" | wc -c)
-        rel_prefix=$(printf '../%.0s' $(seq 1 "$depth" 2>/dev/null))
-        n=$(replace_in_file "$f" "$rel_prefix" "$mapping_file")
-        replaced_total=$((replaced_total + n))
-    done < <(find "$SITE_DIR" \( -name '*.json' -o -name '*.html' \) -print0)
+    local replaced_total
+    replaced_total=$(replace_all "$SITE_DIR" "$mapping_file")
 
     echo "screenshots: $downloaded downloaded, $converted converted, " \
          "$unchanged unchanged (cache), $missing not found, " \
          "$failed failed, $copied webp in $OUT_DIR, " \
          "$replaced_total URL references replaced" | tr -s ' '
 
-    rm -f "$urls_file" "$mapping_file" "$MANIFEST_SNAPSHOT"
+    rm -f "$urls_file" "$mapping_file"
+    rm -rf "$MANIFEST_LOOKUP_DIR"
 }
 
 main "$@"
