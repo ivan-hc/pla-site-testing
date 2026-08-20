@@ -486,7 +486,7 @@ EOF
         fi
         if [ -n "$author" ]; then
             cat <<EOF
-@${author}, as the author of **$app**: is the screenshot above okay to add to
+@${author}, as the author of **$app**: is/are the screenshot(s) above okay to add to
 the catalog? Let me know if you'd like it removed or replaced.
 
 EOF
