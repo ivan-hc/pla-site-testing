@@ -48,7 +48,7 @@ jobs:
             fonts-dejavu-core openbox \
             libegl1 libgl1 libgl1-mesa-dri libopengl0 mesa-utils \
             libdbus-glib-1-2 zenity \
-            libasound2 libportaudio2 libjack-jackd2-0 libsndfile1 libpulse0 \
+            libasound2t64 libportaudio2 libjack-jackd2-0 libsndfile1 libpulse0 \
             libvulkan1 mesa-vulkan-drivers \
             libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
             libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0 \
