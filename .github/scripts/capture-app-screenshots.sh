@@ -28,6 +28,9 @@ export GALLIUM_DRIVER=llvmpipe
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
 # no sound hardware in CI: SDL apps (games etc.) abort at startup otherwise
 export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
+# OpenAL probes ALSA on its own, independent of SDL_AUDIODRIVER -- this is
+# what's behind the "ALSA lib confmisc.c..." noise in some game logs
+export ALSOFT_DRIVERS=${ALSOFT_DRIVERS:-null}
 export DISPLAY="${DISPLAY:-:99}"
 
 results=()
@@ -52,7 +55,10 @@ if ! gh release view "$RELEASE_TAG" -R "$REPO" >/dev/null 2>&1; then
 fi
 
 # --- virtual display --------------------------------------------------------
-Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 &
+# +extension GLX is an attempt at fixing native OpenGL apps (Qt/GLX
+# "Failed to finding matching FBConfig" errors) -- worth it since it's free
+# if Xvfb ignores it, but unverified against a real GLX app.
+Xvfb :99 -screen 0 1280x800x24 +extension GLX +render -noreset >/dev/null 2>&1 &
 XVFB_PID=$!
 sleep 2
 # a minimal WM gives windows sane stacking/focus; harmless if absent
@@ -170,20 +176,27 @@ for app in "${APPS[@]}"; do
         rm -rf "$WORK_DIR/out"
         mkdir -p "$WORK_DIR/out"
         launch_app "${1:-}"
-        sleep "$DELAY"
 
-        # find the app's main window: the largest top-level X window (ignores
-        # the tiny helper windows from xdg-portals, GTK scratch windows etc.)
-        local main_wid
-        main_wid=$(find_main_window)
+        # poll for the window instead of one fixed sleep: some apps (SDL
+        # engines especially) take much longer than others to map their
+        # window, and a fixed sleep either wastes time on fast apps or
+        # misses the window entirely on slow ones.
+        local main_wid="" waited=0
+        while [ "$waited" -lt "$DELAY" ]; do
+            main_wid=$(find_main_window)
+            [ -n "$main_wid" ] && break
+            sleep 1
+            waited=$((waited + 1))
+        done
+
         if [ -n "$main_wid" ]; then
-            log "  window found: $main_wid"
+            log "  window found after ${waited}s: $main_wid"
             xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || \
                 log "  windowsize rejected (fixed-size window)"
-            sleep 1
+            sleep 2
             # capturing the window itself crops any blank space around it
         else
-            log "  no window found on display, capturing full root"
+            log "  no window found on display after ${DELAY}s, capturing full root"
             xwininfo -root -tree 2>/dev/null | tail -n 15 > "$WORK_DIR/$app.tree.log" || true
         fi
 
@@ -274,8 +287,12 @@ for app in "${APPS[@]}"; do
             log "sandbox error detected, retrying with --no-sandbox"
             SHOT=$(capture_once "--no-sandbox")
         elif gpu_hint; then
-            log "GPU error detected, retrying with --no-sandbox --disable-gpu"
-            SHOT=$(capture_once "--no-sandbox --disable-gpu")
+            log "GPU error detected, retrying with --no-sandbox --disable-gpu --disable-dev-shm-usage"
+            SHOT=$(capture_once "--no-sandbox --disable-gpu --disable-dev-shm-usage")
+            if [ -z "$SHOT" ] || is_blank "$SHOT"; then
+                log "still failing, retrying with --use-gl=swiftshader --disable-gpu-compositing too"
+                SHOT=$(capture_once "--no-sandbox --disable-gpu --disable-dev-shm-usage --use-gl=swiftshader --disable-gpu-compositing")
+            fi
         else
             log "no/blank capture, retrying"
             SHOT=$(capture_once "")
