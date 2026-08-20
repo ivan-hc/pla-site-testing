@@ -1,3 +1,0 @@
-# Apps that are not useful to screenshot (CLI tools, servers, daemons, ...
-# one app name per line, # starts a comment. Add apps here to skip them in the
-# screenshot-capture workflow.
