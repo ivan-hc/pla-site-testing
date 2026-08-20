@@ -22,6 +22,10 @@ DELAY="${DELAY:-20}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${RUNNER_TEMP:-/tmp}/app-capture"
 RELEASE_TAG="screenshots-captured"
+# whether to look up the app author's GitHub handle and ask them about the
+# screenshot in the issue (set to 0 to disable)
+MENTION_AUTHOR="${MENTION_AUTHOR:-1}"
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 mkdir -p "$WORK_DIR/out"
 export PATH="$HOME/.local/bin:$PATH"
@@ -409,6 +413,64 @@ for app in "${APPS[@]}"; do
         fi
     fi
 
+    # find the app author's GitHub handle (to ask about the screenshot) --
+    # the AM install script's SITE= value is "owner/repo" for github-hosted
+    # apps; repos whose name ends in -appimage (e.g. pkgforge-dev/*-AppImage)
+    # only *package* the app, so resolve their README's "Upstream URL" to the
+    # real project and use the owner only when that upstream is a GitHub repo.
+    author=""
+    if [ "$MENTION_AUTHOR" = "1" ]; then
+        site=$(curl -fsSL --max-time 30 -A "$UA" \
+            "https://raw.githubusercontent.com/ivan-hc/AM/main/programs/x86_64/$app" 2>/dev/null \
+            | grep -oE 'SITE[0-9]*="[^"]*"' | head -n1 \
+            | sed -E 's/^SITE[0-9]*="//; s/"$//' || true)
+        if [[ "$site" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            owner=${site%/*}
+            repo=${site#*/}
+            if [[ "$repo" =~ -[Aa]pp[Ii]mage(-|$) ]]; then
+                # packaging repo: its README lists the real project under an
+                # "Upstream URL" table header. Take the first canonical
+                # github.com/<owner>/<repo> root link after that header whose
+                # repo name matches the app (case-insensitive). The packaging
+                # repo's own /releases/... links appear in the same table, so
+                # links with a path after the repo name are skipped.
+                # Splitting the readme on '|' puts every table cell on its
+                # own line, so one github link per line is guaranteed.
+                app_lc=$(printf '%s' "$app" | tr 'A-Z' 'a-z')
+                upstream=""
+                while IFS= read -r line; do
+                    [ -n "$upstream" ] && break
+                    if [ -z "${in_table:-}" ]; then
+                        printf '%s' "$line" | grep -qi 'upstream' && in_table=1
+                        continue
+                    fi
+                    printf '%s' "$line" | grep -q ':---:' && continue
+                    if [[ "$line" =~ github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+) ]]; then
+                        # snapshot before any other =~ test: a failed regex
+                        # match unsets BASH_REMATCH
+                        gh_owner="${BASH_REMATCH[1]}"
+                        gh_repo="${BASH_REMATCH[2]}"
+                        rest="${line#*${BASH_REMATCH[0]}}"
+                        [[ "$rest" =~ ^/[^[:space:]]* ]] && continue
+                        gh_repo_lc=$(printf '%s' "$gh_repo" | tr 'A-Z' 'a-z')
+                        if [[ "$gh_repo_lc" == *"$app_lc"* ]] || [[ "$app_lc" == *"$gh_repo_lc"* ]]; then
+                            upstream="$gh_owner/$gh_repo"
+                        fi
+                    fi
+                done < <(curl -fsSL --max-time 30 \
+                    "https://raw.githubusercontent.com/$owner/$repo/HEAD/README.md" 2>/dev/null \
+                    | tr '|' '\n' || true)
+                if [ -n "$upstream" ]; then
+                    author="${upstream%/*}"
+                    log "author of $app (upstream of $owner/$repo): @$author"
+                fi
+            else
+                author="$owner"
+                log "author of $app: @$author"
+            fi
+        fi
+    fi
+
     # build the issue body; embed whatever images we have
     {
         cat <<EOF
@@ -421,6 +483,13 @@ EOF
                 "$app" "$img_url" "$app" "$site_url"
         else
             printf '![screenshot of %s](%s)\n\n' "$app" "$img_url"
+        fi
+        if [ -n "$author" ]; then
+            cat <<EOF
+@${author}, as the author of **$app**: is the screenshot above okay to add to
+the catalog? Let me know if you'd like it removed or replaced.
+
+EOF
         fi
         cat <<'EOF'
 **Checklist**

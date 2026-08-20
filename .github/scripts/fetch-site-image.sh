@@ -72,10 +72,10 @@ while [ "$hop" -lt 5 ]; do
             echo "no README for $site" >&2
             exit 1
         fi
-        # repo name ends in -appimage: it's a build repo, resolve the
+        # repo name is a *-AppImage[-suffix] build repo: resolve the
         # upstream project and use its images instead of the packaging logo
         upstream=""
-        if [[ "$repo" =~ -[Aa]pp[Ii]mage$ ]]; then
+        if [[ "$repo" =~ -[Aa]pp[Ii]mage(-|$) ]]; then
             upstream=$(upstream_from_readme "$doc")
         fi
         if [ -n "$upstream" ]; then
