@@ -63,10 +63,11 @@ printf 'pcm.!default { type null }\nctl.!default { type null }\n' > "$HOME/.asou
 export DISPLAY="${DISPLAY:-:99}"
 
 # prevent appimage integration dialog
-mkdir -p $HOME/.local/share/appimagekit /usr/share/appimagekit /etc/appimagekit
+mkdir -p $HOME/.local/share/appimagekit
+sudo mkdir -p /usr/share/appimagekit /etc/appimagekit
 touch $HOME/.local/share/appimagekit/no_desktopintegration
-touch /usr/share/appimagekit/no_desktopintegration
-touch /etc/appimagekit/no_desktopintegration
+sudo touch /usr/share/appimagekit/no_desktopintegration
+sudo touch /etc/appimagekit/no_desktopintegration
 export DESKTOPINTEGRATION="NO THANKS"
 
 results=()
