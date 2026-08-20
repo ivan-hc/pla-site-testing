@@ -497,9 +497,11 @@ EOF
 - [ ] add the best one to the _SCREENSHOTS_ line for this app in the catalog
 - [ ] close this issue when done
 
-_Reproduction (AppImage/AppMan):_
-```
-appman -i --user <app>
+_Reproduction (AM/AppMan):_
+```sh
+appman -i $app
+# or
+am -i $app
 ```
 EOF
     } > "$WORK_DIR/$app.body.md"
