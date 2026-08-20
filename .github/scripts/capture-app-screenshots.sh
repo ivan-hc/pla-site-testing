@@ -50,6 +50,12 @@ export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
 # OpenAL probes ALSA on its own, independent of SDL_AUDIODRIVER -- this is
 # what's behind the "ALSA lib confmisc.c..." noise in some game logs
 export ALSOFT_DRIVERS=${ALSOFT_DRIVERS:-null}
+# Go game engines call snd_pcm_open("default") directly (oto), bypassing
+# SDL/OpenAL entirely; with no sound card on the runner that resolves to a
+# missing hw:0 and the app aborts ("ALSA error at snd_pcm_open"). A null
+# ALSA default device satisfies those opens while dropping all audio.
+mkdir -p "$HOME/.config/alsa" 2>/dev/null || true
+printf 'pcm.!default { type null }\nctl.!default { type null }\n' > "$HOME/.asoundrc"
 export DISPLAY="${DISPLAY:-:99}"
 
 results=()
@@ -94,14 +100,10 @@ sleep 1
 count=0
 LAUNCH_PGID=0
 for app in "${APPS[@]}"; do
-    count=$((count + 1))
-    if [ "$count" -gt "$MAX_APPS" ]; then
-        log "[$count/$MAX_APPS] reached max, stopping"
-        break
-    fi
-    log "===== [$count/$MAX_APPS] $app ====="
-
-    # skip apps that already have an open screenshot-request issue
+    # skip apps that already have an open screenshot-request issue before
+    # consuming a $MAX_APPS slot, so a run always processes $MAX_APPS apps
+    # that actually need handling (issues already filed don't count toward
+    # the limit)
     open_issues=$(gh issue list -R "$REPO" --state open \
         --search "in:title \"Screenshot for $app\"" --json number -q 'length' 2>/dev/null || echo 0)
     if [ "${open_issues:-0}" -ge 1 ]; then
@@ -109,6 +111,13 @@ for app in "${APPS[@]}"; do
         results+=("SKIP $app (issue already open)")
         continue
     fi
+
+    count=$((count + 1))
+    if [ "$count" -gt "$MAX_APPS" ]; then
+        log "[$count/$MAX_APPS] reached max, stopping"
+        break
+    fi
+    log "===== [$count/$MAX_APPS] $app ====="
 
     # install via AppMan (local, no root)
     log "installing $app via appman..."
