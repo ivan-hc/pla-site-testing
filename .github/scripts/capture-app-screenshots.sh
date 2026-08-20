@@ -4,7 +4,10 @@
 # Environment:
 #   REPO      GitHub repo in owner/name form (default: current repo)
 #   MAX_APPS  how many apps to process in this run (default: 10)
-#   DELAY     seconds to wait for each app window (default: 20)
+#   DELAY     seconds to wait for a window to map (default: 20)
+#   SETTLE_DELAY  seconds to wait after the window maps, before capturing
+#                 (default: 6) -- window mapping isn't the same as the app
+#                 finishing rendering its content
 #   SHUFFLE   any value -> randomize app order instead of alphabetical
 #   GITHUB_STEP_SUMMARY  set by GitHub Actions (optional, for the run summary)
 
@@ -23,9 +26,17 @@ export PATH="$HOME/.local/bin:$PATH"
 # Friendly runtime settings for GUI apps under a virtual display.
 export APPIMAGE_EXTRACT_AND_RUN=1
 export ELECTRON_DISABLE_SANDBOX=1
+# Gecko (Firefox/Thunderbird-based apps like betterbird) has its own
+# sandbox init, separate from Chromium's -- it doesn't read --no-sandbox
+# at all, only this env var. Harmless to set for non-Gecko apps.
+export MOZ_DISABLE_SANDBOX=1
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
 export QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
+# how long to wait after a window is found (mapped) before capturing --
+# window mapping doesn't mean rendering is finished, especially for
+# apps doing async content loading (QML, Electron renderer, etc.)
+export SETTLE_DELAY="${SETTLE_DELAY:-6}"
 # no sound hardware in CI: SDL apps (games etc.) abort at startup otherwise
 export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
 # OpenAL probes ALSA on its own, independent of SDL_AUDIODRIVER -- this is
@@ -53,6 +64,7 @@ if ! gh release view "$RELEASE_TAG" -R "$REPO" >/dev/null 2>&1; then
         --latest=false --title "Auto-captured screenshots" \
         --notes "Screenshots captured automatically and referenced from screenshot-request issues." >/dev/null
 fi
+
 
 # --- virtual display --------------------------------------------------------
 # +extension GLX is an attempt at fixing native OpenGL apps (Qt/GLX
@@ -193,7 +205,8 @@ for app in "${APPS[@]}"; do
             log "  window found after ${waited}s: $main_wid"
             xdotool windowsize "$main_wid" 1280 800 >/dev/null 2>&1 || \
                 log "  windowsize rejected (fixed-size window)"
-            sleep 2
+            log "  settling ${SETTLE_DELAY}s before capture"
+            sleep "$SETTLE_DELAY"
             # capturing the window itself crops any blank space around it
         else
             log "  no window found on display after ${DELAY}s, capturing full root"
