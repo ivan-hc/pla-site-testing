@@ -5,7 +5,7 @@ Prints a JSON array of app file names (AM app IDs) whose `# SCREENSHOTS:` line
 is missing, empty, or still holds the `contribute_ss.webp` placeholder.
 Sorted alphabetically so repeated runs retry the same failing apps.
 
-Exclusions are read from `app-screenshot-blacklist` next to this script.
+Exclusions are read from `screenshot_capture_blacklist` next to this script.
 """
 import os
 import re
@@ -21,6 +21,11 @@ with urlopen("https://kazam0180.github.io/pla-site-testing/categories/command-li
     data = json.loads(resp.read())
     for k in data.keys():
         blacklist.add(k)
+
+with open('.github/scripts/screenshot_capture_blacklist', 'r') as f:
+    lines = f.readlines()
+    names = [line.strip() for line in lines if line.strip() != '']
+    blacklist.update(names)
 
 PLACEHOLDER = re.compile(r"contribute_ss")
 
