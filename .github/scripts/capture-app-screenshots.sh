@@ -25,6 +25,8 @@ RELEASE_TAG="screenshots-captured"
 # whether to look up the app author's GitHub handle and ask them about the
 # screenshot in the issue (set to 0 to disable)
 MENTION_AUTHOR="${MENTION_AUTHOR:-1}"
+# whether to look for a Flathub screenshot to include in the issue (set to 0 to disable)
+FLATHUB_SCREENSHOTS="${FLATHUB_SCREENSHOTS:-1}"
 UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 mkdir -p "$WORK_DIR/out"
@@ -80,6 +82,65 @@ cleanup() {
     [ -n "${XVFB_PID:-}" ] && kill "$XVFB_PID" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+# --- Flathub screenshot helper -----------------------------------------------
+flathub_screenshot() {
+    # Search Flathub for an app by name and download its first screenshot.
+    # Prints the path of the downloaded image on success, or nothing.
+    local app="$1" work_dir="$2"
+
+    # Search Flathub for the app by name
+    local hits
+    hits=$(curl -sS --max-time 30 \
+        -H 'Content-Type: application/json' \
+        -d "{\"query\":\"$app\",\"filters\":[],\"hitsPerPage\":5,\"page\":1}" \
+        "https://flathub.org/api/v2/search" 2>/dev/null || true)
+    [ -n "$hits" ] || return 0
+
+    # Extract the first app_id whose name matches the query (case-insensitive)
+    local app_id
+    app_id=$(printf '%s' "$hits" | jq -r '
+        [.hits[]? | select(.name | ascii_downcase | contains($APP | ascii_downcase))
+         | .app_id][0] // empty
+    ' --arg APP "$app" 2>/dev/null || true)
+
+    # Fallback: first result's app_id
+    [ -n "$app_id" ] || app_id=$(printf '%s' "$hits" \
+        | jq -r '.hits[0].app_id // empty' 2>/dev/null || true)
+    # Fallback: grep (no jq)
+    [ -n "$app_id" ] || app_id=$(printf '%s' "$hits" \
+        | grep -oE '"app_id":"[^"]+"' | head -n1 \
+        | sed -E 's/"app_id":"//; s/"$//' || true)
+    [ -n "$app_id" ] || return 0
+
+    log "flathub: $app -> $app_id"
+
+    # Fetch app details (screenshots live in appstream)
+    local details
+    details=$(curl -sS --max-time 30 \
+        "https://flathub.org/api/v2/appstream/$app_id" 2>/dev/null || true)
+    [ -n "$details" ] || return 0
+
+    # Extract first screenshot URL -- prefer a ~1248px wide version for
+    # readable inline display; fall back to the largest available size.
+    local url
+    url=$(printf '%s' "$details" | jq -r '
+        (.screenshots[0].sizes[] | select(.width == "1248") | .src)
+        // (.screenshots[0].sizes | sort_by(.tonumber) | reverse | .[0].src)
+        // empty
+    ' 2>/dev/null || true)
+    # Fallback: grep for known Flathub screenshot URL pattern
+    [ -n "$url" ] || url=$(printf '%s' "$details" \
+        | grep -oE '"src":"https://dl\.flathub\.org/media/[^"]+\.(png|jpg|jpeg|webp)"' \
+        | head -n1 | sed -E 's/^"src":"//; s/"$//' || true)
+    [ -n "$url" ] || return 0
+
+    # Download the screenshot
+    local fname="$work_dir/flathub-$app.png"
+    if curl -fsSL --max-time 30 -o "$fname" "$url" 2>/dev/null; then
+        [ -s "$fname" ] && printf '%s' "$fname"
+    fi
+}
 
 # --- candidate selection ----------------------------------------------------
 mapfile -t APPS < <(
@@ -421,6 +482,27 @@ for app in "${APPS[@]}"; do
         fi
     fi
 
+    # --- Flathub screenshot (for comparison in the issue) ----------------------
+    FLATHUB_SHOT=""
+    if [ "$FLATHUB_SCREENSHOTS" = "1" ]; then
+        if FLATHUB_SHOT=$(flathub_screenshot "$app" "$WORK_DIR" 2>"$WORK_DIR/$app.flathub.log"); then
+            if [ -n "$FLATHUB_SHOT" ] && [ -s "$FLATHUB_SHOT" ]; then
+                log "flathub screenshot: $FLATHUB_SHOT ($(identify -format '%wx%h' "$FLATHUB_SHOT" 2>/dev/null || echo '?'))"
+            else
+                FLATHUB_SHOT=""
+            fi
+        else
+            FLATHUB_SHOT=""
+            log "no flathub screenshot ($(tail -n1 "$WORK_DIR/$app.flathub.log" 2>/dev/null || echo '?'))"
+        fi
+    fi
+
+    if [ -n "$FLATHUB_SHOT" ]; then
+        if gh release upload "$RELEASE_TAG" "$FLATHUB_SHOT" -R "$REPO" --clobber >/dev/null 2>&1; then
+            flathub_url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$(basename "$FLATHUB_SHOT")"
+        fi
+    fi
+
     # find the app author's GitHub handle (to ask about the screenshot) --
     # the AM install script's SITE= value is "owner/repo" for github-hosted
     # apps; repos whose name ends in -appimage (e.g. pkgforge-dev/*-AppImage)
@@ -486,12 +568,16 @@ This issue was opened automatically for **$app**, which is missing a screenshot
 in the catalog.
 
 EOF
-        if [ -n "$SITE_IMG" ] && [ -n "$site_url" ]; then
-            printf '![captured screenshot of %s](%s)\n\n![site image of %s](%s)\n\n' \
-                "$app" "$img_url" "$app" "$site_url"
-        else
-            printf '![screenshot of %s](%s)\n\n' "$app" "$img_url"
+        # build image block with whatever screenshots we have
+        imgs=""
+        imgs+="![captured screenshot of $app]($img_url)\n\n"
+        if [ -n "$SITE_IMG" ] && [ -n "${site_url:-}" ]; then
+            imgs+="![site image of $app]($site_url)\n\n"
         fi
+        if [ -n "$FLATHUB_SHOT" ] && [ -n "${flathub_url:-}" ]; then
+            imgs+="![Flathub screenshot of $app]($flathub_url)\n\n"
+        fi
+        printf '%b' "$imgs"
         if [ -n "$author" ]; then
             cat <<EOF
 @${author}, as the author of **$app**: is/are the screenshot(s) above okay to add to

@@ -13,6 +13,16 @@ on:
         required: false
         type: number
         default: 20
+      mention-author:
+        description: Look up the app author's GitHub handle and ask them about the screenshot
+        required: false
+        type: boolean
+        default: true
+      flathub-screenshots:
+        description: Fetch a Flathub screenshot to include in the issue for comparison
+        required: false
+        type: boolean
+        default: true
 
 # The default GITHUB_TOKEN writes issues here and uploads images to the
 # "screenshots-captured" release so the issues can embed them inline.
@@ -72,5 +82,7 @@ jobs:
           REPO: ${{ github.repository }}
           MAX_APPS: ${{ inputs.max-apps }}
           DELAY: ${{ inputs.delay }}
+          MENTION_AUTHOR: ${{ inputs.mention-author && '1' || '0' }}
+          FLATHUB_SCREENSHOTS: ${{ inputs.flathub-screenshots && '1' || '0' }}
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/capture-app-screenshots.sh
