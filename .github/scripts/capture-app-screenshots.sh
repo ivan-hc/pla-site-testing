@@ -190,7 +190,7 @@ for app in "${APPS[@]}"; do
     # install via AppMan (local, no root)
     log "installing $app via appman..."
     if ! timeout 900 env appman_location="$HOME/Applications" \
-        appman -y -i --user "$app" >"$WORK_DIR/$app.install.log" 2>&1; then
+        appman -y -i "$app" >"$WORK_DIR/$app.install.log" 2>&1; then
         log "install failed - last lines from $app.install.log:"
         tail -n 15 "$WORK_DIR/$app.install.log" | tee -a "$WORK_DIR/log.txt" >&2
         results+=("FAIL $app (install)")
@@ -600,7 +600,7 @@ EOF
 
     # uninstall to free disk space on the runner
     log "uninstalling $app..."
-    appman -r --user "$app" >"$WORK_DIR/$app.uninstall.log" 2>&1 || true
+    appman -R "$app" >"$WORK_DIR/$app.uninstall.log" 2>&1 || true
     # remove app temp folders in /tmp/ (Electron, Qt, etc.)
     sudo rm -rf /tmp/*"$app"* 2>/dev/null || true
     sudo rm -rf "$HOME/.config/$app" 2>/dev/null || true
