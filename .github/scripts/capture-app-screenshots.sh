@@ -597,6 +597,13 @@ EOF
         log "issue creation failed: $(tail -n3 "$WORK_DIR/$app.issue.log")"
         results+=("FAIL $app (issue)")
     fi
+
+    # uninstall to free disk space on the runner
+    log "uninstalling $app..."
+    appman -r --user "$app" >"$WORK_DIR/$app.uninstall.log" 2>&1 || true
+    # remove app temp folders in /tmp/ (Electron, Qt, etc.)
+    sudo rm -rf /tmp/*"$app"* 2>/dev/null || true
+    sudo rm -rf "$HOME/.config/$app" 2>/dev/null || true
 done
 
 # --- run summary -------------------------------------------------------------
