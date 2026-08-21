@@ -138,7 +138,7 @@ flathub_screenshot() {
     # Download the screenshot
     local fname="$work_dir/flathub-$app.png"
     if curl -fsSL --max-time 30 -o "$fname" "$url" 2>/dev/null; then
-        [ -s "$fname" ] && printf '%s' "$fname"
+        [ -s "$fname" ] && log "flathub screenshot from $url" && printf '%s' "$fname"
     fi
 }
 
