@@ -97,20 +97,15 @@ flathub_screenshot() {
         "https://flathub.org/api/v2/search" 2>/dev/null || true)
     [ -n "$hits" ] || return 0
 
-    # Extract the first app_id whose name matches the query (case-insensitive)
+    # Extract the first app_id whose name or app_id matches the query
     local app_id
     app_id=$(printf '%s' "$hits" | jq -r '
-        [.hits[]? | select(.name | ascii_downcase | contains($APP | ascii_downcase))
-         | .app_id][0] // empty
+        [.hits[]? | select(
+            (.name | ascii_downcase | contains($APP | ascii_downcase)) or
+            (.app_id | ascii_downcase | contains($APP | ascii_downcase))
+         ) | .app_id][0] // empty
     ' --arg APP "$app" 2>/dev/null || true)
 
-    # Fallback: first result's app_id
-    [ -n "$app_id" ] || app_id=$(printf '%s' "$hits" \
-        | jq -r '.hits[0].app_id // empty' 2>/dev/null || true)
-    # Fallback: grep (no jq)
-    [ -n "$app_id" ] || app_id=$(printf '%s' "$hits" \
-        | grep -oE '"app_id":"[^"]+"' | head -n1 \
-        | sed -E 's/"app_id":"//; s/"$//' || true)
     [ -n "$app_id" ] || return 0
 
     log "flathub: $app -> $app_id"
@@ -485,7 +480,7 @@ for app in "${APPS[@]}"; do
     # --- Flathub screenshot (for comparison in the issue) ----------------------
     FLATHUB_SHOT=""
     if [ "$FLATHUB_SCREENSHOTS" = "1" ]; then
-        if FLATHUB_SHOT=$(flathub_screenshot "$app" "$WORK_DIR" 2>"$WORK_DIR/$app.flathub.log"); then
+        if FLATHUB_SHOT=$(flathub_screenshot "$app" "$WORK_DIR"); then
             if [ -n "$FLATHUB_SHOT" ] && [ -s "$FLATHUB_SHOT" ]; then
                 log "flathub screenshot: $FLATHUB_SHOT ($(identify -format '%wx%h' "$FLATHUB_SHOT" 2>/dev/null || echo '?'))"
             else
@@ -493,7 +488,6 @@ for app in "${APPS[@]}"; do
             fi
         else
             FLATHUB_SHOT=""
-            log "no flathub screenshot ($(tail -n1 "$WORK_DIR/$app.flathub.log" 2>/dev/null || echo '?'))"
         fi
     fi
 
